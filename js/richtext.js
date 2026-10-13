@@ -268,7 +268,12 @@ export function maakRijk(veld, { scene = true } = {}) {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) e.preventDefault();
   });
 
-  veld.addEventListener('input', () => {
+  veld.addEventListener('input', (e) => {
+    // alles weggehaald: opnieuw beginnen met een gewone alinea (geen leeg kopje)
+    if (e.inputType && e.inputType.startsWith('delete') && !veld.textContent && !veld.querySelector('hr')) {
+      veld.innerHTML = '<p><br></p>';
+      caretIn(veld.firstChild);
+    }
     normaliseer(veld);
     veld.dispatchEvent(new CustomEvent('rijk-wijziging'));
   });

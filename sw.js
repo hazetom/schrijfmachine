@@ -1,7 +1,7 @@
 // Service worker: de app werkt volledig offline.
 // Bij een nieuwe versie verandert VERSIE; de nieuwe bestanden worden op de achtergrond
 // opgehaald en gebruikt vanaf de volgende keer dat je de app opent.
-const VERSIE = 'schrijfmachine-1';
+const VERSIE = 'schrijfmachine-2';
 const BESTANDEN = [
   './',
   'index.html',
