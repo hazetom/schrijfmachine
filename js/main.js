@@ -94,6 +94,9 @@ function werkStatus() {
   } else if (m.status === 'verbonden' || m.status === 'bezig') {
     t = 'Opgeslagen in ' + m.naam + (m.laatsteSync ? ' · ' + tijd(m.laatsteSync) : '');
     kleur = 'groen';
+  } else if (m.status === 'wacht') {
+    t = 'Opgeslagen op dit apparaat · wacht op je keuze voor de map';
+    kleur = 'oker';
   } else if (m.status === 'toestemming') {
     t = 'Opgeslagen op dit apparaat · klik om je map weer te koppelen';
     kleur = 'oker';
@@ -489,6 +492,8 @@ async function start() {
   notities = new Notities({ opWijziging: () => { if (app.dataset.view === 'hoofdstukken') hoofdstukken.render(); } });
 
   editor.el.setAttribute('contenteditable', 'false');
+  // voor de automatische tests en voor wie wil meekijken in de console
+  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, notities, hoofdstukken, zetView };
   if (!(await eenVenster())) return;
   editor.laad(store.meta.huidig);
   werkKicker();
@@ -566,7 +571,6 @@ async function start() {
   }
   werkStatus();
   setInterval(werkStatus, 30000);
-  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, notities, hoofdstukken, zetView };
 }
 
 start().catch((e) => {

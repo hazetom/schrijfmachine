@@ -13,7 +13,7 @@ export const mapEvents = new EventTarget();
 
 let map = null;        // FileSystemDirectoryHandle
 let mapId = null;      // eigen sleutel per gekoppelde map
-let status = 'geen';   // geen | toestemming | verbonden | bezig | fout
+let status = 'geen';   // geen | toestemming | wacht (op jouw keuze) | verbonden | bezig | fout
 let laatsteSync = 0;
 let laatsteFout = null;
 let bezig = null;
@@ -233,6 +233,17 @@ export async function ontkoppelMap() {
 
 // ---------- koppelen aan het project ----------
 async function verbind() {
+  try {
+    return await verbindIntern();
+  } catch (e) {
+    console.warn('koppelen mislukt', e);
+    laatsteFout = e;
+    meld('fout', { melding: e && e.message });
+    return { soort: 'fout', fout: e };
+  }
+}
+
+async function verbindIntern() {
   meld('bezig');
   let json;
   try {
@@ -260,12 +271,12 @@ async function verbind() {
       await neemOverUitMap('openen uit map');
       return { soort: 'uit-map' };
     }
-    meld('verbonden');
+    meld('wacht'); // niets schrijven tot je gekozen hebt
     return { soort: 'ander-project', titel: j.titel, aantal: (j.hoofdstukken || []).length };
   }
   const gewijzigd = await zoekExterneWijzigingen(j);
   if (gewijzigd.length) {
-    meld('verbonden');
+    meld('wacht'); // niets schrijven tot je gekozen hebt
     return { soort: 'extern', bestanden: gewijzigd };
   }
   store.markeerAlles();
@@ -307,6 +318,7 @@ function eigenTekst(pad) {
 
 // Leest het project uit de map en vervangt de inhoud van de app (na een versie als vangnet).
 export async function neemOverUitMap(reden = 'overnemen uit map') {
+  meld('verbonden');
   await store.bewaarLokaal();
   await maakSnapshot('vlak voor ' + reden);
   const json = await leesTekst(map, PROJECTBESTAND);
@@ -332,13 +344,14 @@ export async function neemOverUitMap(reden = 'overnemen uit map') {
 
 // De app-versie houden: alles opnieuw wegschrijven. Wat buiten de app veranderd was gaat eerst naar Back-ups.
 export async function houdAppVersie() {
+  meld('verbonden');
   store.markeerAlles();
   await syncNu();
 }
 
 // ---------- synchroniseren ----------
 export async function syncNu() {
-  if (!map || status === 'toestemming' || status === 'geen') return;
+  if (!map || status === 'toestemming' || status === 'geen' || status === 'wacht') return;
   if (bezig) { nogEens = true; return bezig; }
   bezig = (async () => {
     clearTimeout(herhaalTimer);

@@ -398,6 +398,11 @@ await test('map: buiten de app gewijzigd terwijl de app dicht was, keuze bij ops
   await p.goto(BASIS + 'index.html?geenwelkom=1&testmap=opfs&mapnaam=extern2');
   await p.waitForSelector('dialog[open]');
   assert.ok((await p.textContent('dialog[open] h2')).includes('buiten de app'), await p.textContent('dialog[open]'));
+  // zolang je niet gekozen hebt, schrijft de app niets in de map, ook niet als er iets te bewaren valt
+  await p.evaluate(() => { const s = window.__schrijfmachine.store; s.wijzigHoofdstuk(s.meta.huidig, { doel: 'iets' }); });
+  await p.waitForTimeout(2500);
+  assert.equal(await opfsLees(p, 'extern2', pad), '# Hoofdstuk 1\n\nOp de telefoon *verbeterd*.\n');
+  assert.ok((await p.textContent('#status-tekst')).includes('wacht op je keuze'));
   await p.click('dialog[open] .omlijnd'); // versie uit de map
   await p.waitForTimeout(500);
   assert.equal(await md(p), 'Op de telefoon *verbeterd*.\n');
