@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schrijfmachine</title>
+<meta name="description" content="Rustige schrijfapp voor de Chromebook">
+<meta name="theme-color" content="#E6E2D8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-48.png" sizes="48x48">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/literata-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/app.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<div id="app" class="papier" data-view="schrijven">
+  <header class="kop">
+    <span class="kicker" id="kicker">&nbsp;</span>
+    <nav class="nav" aria-label="Menu">
+      <button class="knop alleen-schrijven" id="knop-notities" aria-pressed="false" title="Notities (Ctrl+Alt+N)">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h9l3 3v13H6z"/><path d="M9 10h6M9 14h6"/></svg>
+        <span>Notities</span>
+      </button>
+      <button class="knop alleen-schrijven" id="knop-vergrendel" title="Alles vóór deze pagina achter een waas zetten">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
+        <span id="knop-vergrendel-tekst">Vergrendel</span>
+      </button>
+      <button class="knop alleen-schrijven" id="knop-hoofdstukken" title="Hoofdstukken (Ctrl+Alt+H)">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
+        <span>Hoofdstukken</span>
+      </button>
+      <button class="knop alleen-hoofdstukken" id="knop-terug">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        <span>Terug naar schrijven</span>
+      </button>
+      <div class="menu-houder">
+        <button class="knop" id="knop-meer" aria-haspopup="true" aria-expanded="false" aria-label="Meer">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+          <span>Meer</span>
+        </button>
+        <div class="menu" id="menu" role="menu" hidden>
+          <button role="menuitem" data-actie="exporteer">Exporteer manuscript (.docx)</button>
+          <button role="menuitem" data-actie="importeer">Importeer tekst…</button>
+          <button role="menuitem" data-actie="versies">Versies terugzetten…</button>
+          <hr>
+          <button role="menuitem" data-actie="map" id="menu-map">Kies map…</button>
+          <button role="menuitem" data-actie="nu-opslaan">Nu opslaan</button>
+          <button role="menuitem" data-actie="controle">Controleer opslag</button>
+          <hr>
+          <button role="menuitem" data-actie="titel">Titel van het boek…</button>
+          <button role="menuitem" data-actie="hulp">Sneltoetsen</button>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main class="hoofd">
+    <section class="view" id="view-schrijven" aria-label="Schrijven">
+      <div class="schrijfvlak">
+        <div class="blad" id="blad">
+          <button class="bladzone links" id="zone-vorige" tabindex="-1" aria-label="Vorige pagina"></button>
+          <div class="tekstkader" id="tekstkader">
+            <div id="tekst" class="tekst rijk" contenteditable="true" spellcheck="true" lang="nl" role="textbox" aria-multiline="true" aria-label="Tekst van het hoofdstuk"></div>
+            <div class="waaslaag" id="waaslaag" hidden>
+              <button class="knop omlijnd" id="knop-ontgrendel-hier">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0"/></svg>
+                <span>Ontgrendel</span>
+              </button>
+            </div>
+          </div>
+          <button class="bladzone rechts" id="zone-volgende" tabindex="-1" aria-label="Volgende pagina"></button>
+        </div>
+        <aside class="notities" id="notities" aria-label="Notities" hidden>
+          <nav class="tabs" id="notitie-tabs" aria-label="Soort notitie"></nav>
+          <div class="notitie-lijst" id="notitie-lijst"></div>
+          <div class="notitie-detail" id="notitie-detail"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="view-hoofdstukken" aria-label="Hoofdstukken" hidden>
+      <div class="hs-raster">
+        <section class="hs-lijst-kolom" aria-label="Hoofdstukkenlijst">
+          <div class="hs-slotbalk" id="hs-slotbalk"></div>
+          <ol class="hs-lijst" id="hs-lijst"></ol>
+          <button class="knop hs-nieuw" id="hs-nieuw">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Nieuw hoofdstuk</span>
+          </button>
+        </section>
+        <section class="hs-detail" id="hs-detail" aria-label="Gekozen hoofdstuk"></section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="voet">
+    <div class="paginering alleen-schrijven">
+      <button class="knop" id="knop-vorige" aria-label="Vorige pagina" title="Vorige pagina (PageUp)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span id="paginanummer">blz. 1 van 1</span>
+      <button class="knop" id="knop-volgende" aria-label="Volgende pagina" title="Volgende pagina (PageDown)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="voet-leeg alleen-hoofdstukken"></div>
+    <button class="status" id="status" title="Opslaan">
+      <span class="stip" id="status-stip" aria-hidden="true"></span>
+      <span id="status-tekst">Bezig met laden…</span>
+    </button>
+  </footer>
+</div>
+
+<div class="opmaakbalk" id="opmaakbalk" role="toolbar" aria-label="Opmaak" hidden>
+  <button class="knop" data-opmaak="vet" aria-label="Vet (Ctrl+B)" title="Vet (Ctrl+B)" style="font-weight:600">B</button>
+  <button class="knop" data-opmaak="cursief" aria-label="Cursief (Ctrl+I)" title="Cursief (Ctrl+I)" style="font-style:italic">I</button>
+  <button class="knop" data-opmaak="kop" aria-label="Kopje (Ctrl+Alt+2)" title="Kopje (Ctrl+Alt+2)" style="font-size:13px;letter-spacing:.06em">KOP</button>
+  <button class="knop" data-opmaak="scene" aria-label="Scènescheiding na deze alinea (Ctrl+Shift+Enter)" title="Scènescheiding (Ctrl+Shift+Enter)" style="font-size:13px;letter-spacing:.06em">SCÈNE</button>
+</div>
+
+<dialog id="dialoog" class="dialoog"></dialog>
+<input type="file" id="bestandkiezer" accept=".docx,.md,.txt,.markdown" hidden>
+</body>
+</html>

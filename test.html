@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controleer opslag · Schrijfmachine</title>
+<meta name="theme-color" content="#E6E2D8">
+<link rel="icon" href="icons/favicon-48.png" sizes="48x48">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  body { overflow: auto; }
+  .controle { max-width: 760px; margin: 0 auto; padding: 40px 32px 60px; font-size: 17px; line-height: 1.6; }
+  .controle h1 { font-weight: 400; font-size: 34px; margin: 0 0 6px; }
+  .controle .intro { color: var(--grijs-donker); margin: 0 0 22px; }
+  .stappen { list-style: none; padding: 0; margin: 18px 0; border-top: 1px solid var(--lijn); }
+  .stap { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--lijn); }
+  .stap .teken { font-size: 18px; line-height: 1.5; text-align: center; }
+  .stap.goed .teken { color: var(--groen); }
+  .stap.fout .teken { color: var(--rood); }
+  .stap.let-op .teken { color: var(--oker); }
+  .stap .uitleg { font-size: 14px; color: var(--grijs-donker); }
+  .knoppenrij { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .samenvatting { margin-top: 20px; padding: 14px 18px; border: 1px solid var(--inkt); }
+</style>
+</head>
+<body class="papier">
+<main class="controle">
+  <h1>Controleer opslag</h1>
+  <p class="intro">Deze pagina test in een minuut of de app goed kan bewaren: op dit apparaat, in je gekozen map (Google Drive) en offline. Je manuscript wordt hierbij niet aangeraakt; de test werkt in een eigen mapje dat hij daarna weer opruimt.</p>
+  <div class="knoppenrij">
+    <button class="knop omlijnd" id="start">Start de controle</button>
+    <button class="knop" id="kies">Kies of wijzig de map</button>
+    <a class="knop link" href="./">Terug naar schrijven</a>
+  </div>
+  <ol class="stappen" id="stappen"></ol>
+  <div class="samenvatting" id="samenvatting" hidden></div>
+</main>
+<script type="module" src="js/test-page.js"></script>
+</body>
+</html>

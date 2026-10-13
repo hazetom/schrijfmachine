@@ -1,4 +1,9 @@
-﻿node_modules/
+node_modules/
 test-output/
 *.log
-
+# Je manuscript hoort nooit in deze (openbare) repo
+Starttekst/
+*.docx
+*.doc
+*.odt
+manuscript*.md
