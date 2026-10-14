@@ -22,6 +22,9 @@ export const KLEUREN = [
 
 export const STATUSSEN = ['Idee', 'Concept', 'Herschrijven', 'Klaar'];
 
+// Deze tellen standaard niet mee in de hoofdstuknummering
+export const LOS_RE = /^(proloog|epiloog|intermezzo|interludium|voorwoord|nawoord|dankwoord|naschrift)\b/i;
+
 export const PROJECTBESTAND = 'schrijfmachine.json';
 export const HOOFDSTUKMAP = 'Hoofdstukken';
 
@@ -45,6 +48,7 @@ function leegProject() {
       vergrendelPagina: null,
       huidig: id,
       delen: [],
+      namen: { plaatsen: [], genegeerd: [] },
       aangemaakt: Date.now(),
     },
     hoofdstukken: { [id]: maakHoofdstuk(id, 'Hoofdstuk 1') },
@@ -58,6 +62,8 @@ export function maakHoofdstuk(id, titel, velden = {}) {
     titel,
     bestand: slugify(titel) + '-' + id.slice(0, 4) + '.md',
     lijn: null,
+    los: null,          // null = automatisch (proloog, epiloog... tellen niet mee), true/false = zelf gekozen
+    samenvatting: '',
     status: 'Concept',
     doel: '',
     md: '',
@@ -104,6 +110,7 @@ class Store extends EventTarget {
     if (!hoofdstukken[meta.huidig]) meta.huidig = meta.volgorde[0];
     meta.vergrendeld = (meta.vergrendeld || []).filter((id) => hoofdstukken[id]);
     meta.delen = (meta.delen || []).map((d) => ({ ...d, voor: hoofdstukken[d.voor] ? d.voor : null }));
+    meta.namen = { plaatsen: [], genegeerd: [], ...(meta.namen || {}) };
     for (const t of TABS) if (!notities[t.key]) notities[t.key] = [];
     this.project = { meta, hoofdstukken, notities };
     return { nieuw: false };
@@ -122,7 +129,29 @@ class Store extends EventTarget {
   get meta() { return this.project.meta; }
   hoofdstuk(id) { return this.project.hoofdstukken[id]; }
   lijst() { return this.project.meta.volgorde.map((id) => this.project.hoofdstukken[id]); }
-  nummer(id) { return this.project.meta.volgorde.indexOf(id) + 1; }
+  // Hoofdstuknummer, of null voor een los stuk zoals een proloog.
+  nummer(id) { return this.nummers()[id] ?? null; }
+  isLos(h) {
+    if (typeof h === 'string') h = this.hoofdstuk(h);
+    if (!h) return false;
+    return h.los != null ? !!h.los : LOS_RE.test((h.titel || '').trim());
+  }
+  nummers() {
+    const uit = {};
+    let n = 0;
+    for (const r of this.rijen()) {
+      if (r.soort === 'deel') { if (r.deel.nummering === 'opnieuw') n = 0; continue; }
+      uit[r.h.id] = this.isLos(r.h) ? null : ++n;
+    }
+    return uit;
+  }
+  // "Hoofdstuk 3" of "Proloog": hoe het hoofdstuk heet in kopjes en lijsten
+  label(id) {
+    const n = this.nummer(id);
+    return n == null ? null : 'Hoofdstuk ' + n;
+  }
+  namen() { return this.project.meta.namen || (this.project.meta.namen = { plaatsen: [], genegeerd: [] }); }
+  zetNamen(namen) { this.project.meta.namen = namen; this._meta(); this._gewijzigd(); }
   huidig() { return this.hoofdstuk(this.project.meta.huidig); }
   notities(tab) { return this.project.notities[tab]; }
   verhaallijn(id) { return this.project.notities.verhaallijnen.find((v) => v.id === id) || null; }
@@ -426,11 +455,12 @@ class Store extends EventTarget {
       projectId: p.meta.projectId,
       titel: p.meta.titel,
       bijgewerkt: new Date().toISOString(),
-      hoofdstukken: this.lijst().map((h) => ({ id: h.id, bestand: h.bestand, titel: h.titel, lijn: h.lijn, status: h.status, doel: h.doel })),
+      hoofdstukken: this.lijst().map((h) => ({ id: h.id, bestand: h.bestand, titel: h.titel, lijn: h.lijn, status: h.status, doel: h.doel, samenvatting: h.samenvatting || '', los: h.los ?? null })),
       vergrendeld: p.meta.vergrendeld,
       vergrendelPagina: p.meta.vergrendelPagina,
       huidig: p.meta.huidig,
-      delen: this.delen().map((d) => ({ id: d.id, titel: d.titel, voor: d.voor })),
+      delen: this.delen().map((d) => ({ id: d.id, titel: d.titel, voor: d.voor, nummering: d.nummering || 'door' })),
+      namen: this.namen(),
     }, null, 2) + '\n';
   }
 
@@ -464,6 +494,7 @@ export function notitiesNaarMd(label, items) {
   const delen = [`<!-- schrijfmachine notities: ${label} -->`];
   for (const it of items) {
     const meta = { id: it.id };
+    if (it.aliassen && it.aliassen.length) meta.aliassen = it.aliassen;
     if (it.sub) meta.sub = it.sub;
     if (it.kleur) meta.kleur = it.kleur;
     delen.push('# ' + ((it.naam || '').replace(/\n/g, ' ').trim() || 'Zonder naam') + '\n<!-- schrijfmachine ' + JSON.stringify(meta) + ' -->' + (it.md ? '\n\n' + it.md.trim() : ''));
@@ -496,6 +527,7 @@ export function mdNaarNotities(md) {
         if (j.id) cur.id = String(j.id);
         if (j.sub) cur.sub = String(j.sub);
         if (j.kleur) cur.kleur = String(j.kleur);
+        if (Array.isArray(j.aliassen)) cur.aliassen = j.aliassen.map(String);
       } catch (e) { /* kapotte regel: negeren */ }
       continue;
     }
@@ -521,7 +553,7 @@ export function bestandenNaarProject(json, hoofdstukTeksten, notitieTeksten, oud
       md = oudProject.hoofdstukken[h.id].md;
     }
     hoofdstukken[h.id] = maakHoofdstuk(h.id, titel, {
-      bestand: h.bestand, lijn: h.lijn || null, status: h.status || 'Concept', doel: h.doel || '', md, woorden: countWords(md),
+      bestand: h.bestand, lijn: h.lijn || null, status: h.status || 'Concept', doel: h.doel || '', samenvatting: h.samenvatting || '', los: h.los ?? null, md, woorden: countWords(md),
     });
     volgorde.push(h.id);
   }
@@ -543,7 +575,8 @@ export function bestandenNaarProject(json, hoofdstukTeksten, notitieTeksten, oud
       vergrendeld: (j.vergrendeld || []).filter((id) => hoofdstukken[id]),
       vergrendelPagina: j.vergrendelPagina || null,
       huidig: hoofdstukken[j.huidig] ? j.huidig : volgorde[0],
-      delen: (j.delen || []).map((d) => ({ id: String(d.id), titel: String(d.titel || ''), voor: hoofdstukken[d.voor] ? d.voor : null })),
+      delen: (j.delen || []).map((d) => ({ id: String(d.id), titel: String(d.titel || ''), voor: hoofdstukken[d.voor] ? d.voor : null, nummering: d.nummering === 'opnieuw' ? 'opnieuw' : 'door' })),
+      namen: { plaatsen: [], genegeerd: [], ...(j.namen || {}) },
       aangemaakt: Date.now(),
     },
     hoofdstukken,

@@ -47,6 +47,7 @@
         </button>
         <div class="menu" id="menu" role="menu" hidden>
           <button role="menuitem" data-actie="zoeken">Zoeken en vervangen <span class="sneltoets">Ctrl+F</span></button>
+          <button role="menuitem" data-actie="claude">Klaar voor Claude… <span class="sneltoets">Ctrl+Alt+C</span></button>
           <hr>
           <button role="menuitem" data-actie="exporteer">Exporteer manuscript (.docx)</button>
           <button role="menuitem" data-actie="importeer">Importeer tekst…</button>
@@ -132,9 +133,11 @@
   <button class="knop" data-opmaak="cursief" aria-label="Cursief (Ctrl+I)" title="Cursief (Ctrl+I)" style="font-style:italic">I</button>
   <button class="knop" data-opmaak="kop" aria-label="Kopje (Ctrl+Alt+2)" title="Kopje (Ctrl+Alt+2)" style="font-size:13px;letter-spacing:.06em">KOP</button>
   <button class="knop" data-opmaak="scene" aria-label="Scènescheiding na deze alinea (Ctrl+Shift+Enter)" title="Scènescheiding (Ctrl+Shift+Enter)" style="font-size:13px;letter-spacing:.06em">SCÈNE</button>
+  <button class="knop" data-opmaak="claude" aria-label="Klaar voor Claude (Ctrl+Alt+C)" title="Klaar voor Claude (Ctrl+Alt+C)" style="font-size:13px;letter-spacing:.06em">CLAUDE</button>
 </div>
 
 <div class="zoekpaneel" id="zoekpaneel" role="search" hidden></div>
+<div class="zoekpaneel claudepaneel" id="claudepaneel" role="dialog" aria-label="Klaar voor Claude" hidden></div>
 <dialog id="dialoog" class="dialoog"></dialog>
 <input type="file" id="bestandkiezer" accept=".docx,.md,.txt,.markdown" hidden>
 </body>

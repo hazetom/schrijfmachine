@@ -4,6 +4,7 @@ import { store } from './store.js';
 import { mdToBlocks, blocksToMd, normalizeRuns } from './markdown.js';
 import { el, dialoog } from './ui.js';
 import { maakSnapshot } from './snapshots.js';
+import { blokVanAlinea } from './claude.js';
 
 function escRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -76,9 +77,25 @@ export class Zoeken {
     this.lijst.innerHTML = '';
     const re = this.regex();
     if (!re) { this.info.textContent = ''; return; }
+    // "A12": naar alinea 12 van dit hoofdstuk (de nummers uit Klaar voor Claude)
+    const alinea = /^a(\d{1,4})$/i.exec(this.veld.value.trim());
+    if (alinea) {
+      const h = store.huidig();
+      const blok = blokVanAlinea(h.md, +alinea[1]);
+      if (blok !== null) {
+        const b = mdToBlocks(h.md)[blok];
+        const tekst = b.runs.map((r) => r.t).join('');
+        this.treffers = [{ id: h.id, titel: h.titel, nr: store.nummer(h.id) ?? '', blok, start: 0, lengte: tekst.length, tekst }];
+        this.info.textContent = 'Alinea ' + alinea[1] + ' in dit hoofdstuk';
+        const knop = el('button', { class: 'zoek-treffer', role: 'option', 'data-k': 0 }, el('span', { class: 'zoek-waar', text: 'A' + alinea[1] + ' · ' + (h.titel || '') }), el('span', { class: 'zoek-stuk', text: tekst.slice(0, 120) + (tekst.length > 120 ? '…' : '') }));
+        knop.addEventListener('click', () => this.kies(0));
+        this.lijst.append(knop);
+        return;
+      }
+    }
     let nr = 0;
     for (const h of store.lijst()) {
-      nr++;
+      nr = store.nummer(h.id) ?? '';
       mdToBlocks(h.md).forEach((b, blok) => {
         if (b.type === 'scene') return;
         const tekst = b.runs.map((r) => r.t).join('');
@@ -96,7 +113,7 @@ export class Zoeken {
       const voor = t.tekst.slice(Math.max(0, t.start - 40), t.start);
       const na = t.tekst.slice(t.start + t.lengte, t.start + t.lengte + 60);
       const knop = el('button', { class: 'zoek-treffer', role: 'option', 'data-k': k },
-        el('span', { class: 'zoek-waar', text: t.nr + ' · ' + (t.titel || 'Zonder titel') }),
+        el('span', { class: 'zoek-waar', text: (t.nr === '' ? '' : t.nr + ' · ') + (t.titel || 'Zonder titel') }),
         el('span', { class: 'zoek-stuk' }, (t.start > 40 ? '…' : '') + voor, el('mark', { text: t.tekst.substr(t.start, t.lengte) }), na + '…'));
       knop.addEventListener('click', () => this.kies(k));
       this.lijst.append(knop);

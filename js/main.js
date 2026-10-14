@@ -13,9 +13,11 @@ import { el, dialoog, dialoogOpen, tijd, datumTijd, woorden } from './ui.js';
 import { Kantlijn } from './kantlijn.js';
 import { Zoeken } from './zoeken.js';
 import { lees, zet, pasThemaToe, instellingen, VERSIE } from './instellingen.js';
+import { Claude } from './claude.js';
+import { blokVan } from './richtext.js';
 
 const app = document.getElementById('app');
-let editor, hoofdstukken, notities, kantlijn, zoeken;
+let editor, hoofdstukken, notities, kantlijn, zoeken, claude;
 let swRegistratie = null;
 let updateKlaar = false;
 let bijwerkenGevraagd = false;
@@ -38,6 +40,7 @@ function zetView(view, { focus = true } = {}) {
     document.getElementById('view-schrijven').hidden = false;
     editor.herbereken();
     if (focus) editor.focus();
+    if (kantlijn) kantlijn.werkBij();
   }
   werkKicker();
 }
@@ -55,7 +58,8 @@ function werkKicker() {
       const lijn = h.lijn ? store.verhaallijn(h.lijn) : null;
       if (lijn && lijn.kleur) k.append(el('span', { class: 'vlak', 'aria-hidden': 'true', style: { backgroundColor: lijn.kleur } }));
       const deel = store.deelVan(h.id);
-      k.append(el('span', { text: (deel ? (deel.titel || 'Deel') : 'Hoofdstuk ' + store.nummer(h.id)) + ' · ' + (h.titel || 'Zonder titel') }));
+      const delen = [deel ? (deel.titel || 'Deel') : null, store.label(h.id), h.titel || 'Zonder titel'].filter(Boolean);
+      k.append(el('span', { text: delen.join(' · ') }));
     }
   }
   const iets = store.meta.vergrendeld.length || store.meta.vergrendelPagina;
@@ -76,6 +80,36 @@ function openSchrijven(id, opties = null) {
     editor.laad(id, opties || {});
   }
   zetView('schrijven', { focus: !(opties && opties.treffer && opties.treffer.focus === false) });
+}
+
+// Welke alinea's zijn geselecteerd? Voor "Klaar voor Claude".
+function huidigeSelectie() {
+  const sel = document.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed || !editor.el.contains(sel.anchorNode) || !editor.el.contains(sel.focusNode)) return null;
+  const r = sel.getRangeAt(0);
+  const kinderen = [...editor.el.children];
+  const a = kinderen.indexOf(blokVan(editor.el, r.startContainer));
+  const b = kinderen.indexOf(blokVan(editor.el, r.endContainer));
+  if (a < 0 || b < 0) return null;
+  // alineanummers zoals in de opgeslagen tekst: lege alinea's en scènescheidingen tellen niet
+  const nummer = (k) => {
+    let n = 0;
+    for (let i = 0; i <= k; i++) { const c = kinderen[i]; if (c.tagName !== 'HR' && c.textContent.trim()) n++; }
+    return n;
+  };
+  const alineas = [];
+  for (let k = a; k <= b; k++) { const c = kinderen[k]; if (c.tagName !== 'HR' && c.textContent.trim()) alineas.push(nummer(k)); }
+  if (!alineas.length) return null;
+  const tekst = String(sel).trim();
+  const geheel = kinderen[a].textContent.trim();
+  if (a === b && tekst.length < geheel.length * 0.8) return { alineas, deel: tekst };
+  return { alineas };
+}
+
+function openClaude() {
+  if (app.dataset.view !== 'schrijven') zetView('schrijven');
+  if (zoeken.open) zoeken.sluit();
+  claude.toon();
 }
 
 function anderHoofdstuk(delta) {
@@ -307,6 +341,8 @@ async function menuActie(actie) {
     if (t !== null) { store.zetTitel(t); werkKicker(); }
   } else if (actie === 'hulp') {
     hulp();
+  } else if (actie === 'claude') {
+    openClaude();
   } else if (actie === 'zoeken') {
     if (app.dataset.view !== 'schrijven') zetView('schrijven');
     zoeken.toon();
@@ -331,6 +367,9 @@ async function instellingenDialoog() {
     zet('volledigScherm', vs.checked);
     if (vs.checked) gaVolledigScherm(); else verlaatVolledigScherm();
   });
+  const kl = el('input', { type: 'checkbox', 'aria-label': 'Kantlijn altijd tonen' });
+  kl.checked = lees('kantlijnVast');
+  kl.addEventListener('change', () => zet('kantlijnVast', kl.checked));
   const ty = el('input', { type: 'checkbox', 'aria-label': 'Slimme aanhalingstekens' });
   ty.checked = lees('typografie');
   ty.addEventListener('change', () => zet('typografie', ty.checked));
@@ -339,6 +378,7 @@ async function instellingenDialoog() {
     inhoud: [
       el('div', { class: 'instelling' }, el('div', {}, el('div', { text: 'Avondstand' }), el('div', { class: 'uitleg', text: 'Donker, warm papier voor \'s avonds. Voor een warmere kleur van het hele scherm: zet op de Chromebook ook Nachtverlichting aan (klik op de klok rechtsonder).' }), avond)),
       el('label', { class: 'instelling' }, vs, el('div', {}, el('div', { text: 'Volledig scherm' }), el('div', { class: 'uitleg', text: 'Bij de eerste toets of klik verdwijnt alles behalve je tekst. Houd Esc even ingedrukt om eruit te gaan.' }))),
+      el('label', { class: 'instelling' }, kl, el('div', {}, el('div', { text: 'Hoofdstukken altijd in de kantlijn' }), el('div', { class: 'uitleg', text: 'Anders verschijnen ze alleen als je met de muis naar links gaat.' }))),
       el('label', { class: 'instelling' }, ty, el('div', {}, el('div', { text: 'Slimme aanhalingstekens' }), el('div', { class: 'uitleg', text: 'Tijdens het typen wordt " een “ of ”, \' een ‘ of ’, \'s een ’s en ... een …' }))),
     ],
     knoppen: [{ tekst: 'Klaar', waarde: null, hoofd: true }],
@@ -483,7 +523,8 @@ function hulp() {
       rij('PageUp', 'Vorige pagina'),
       rij('Ctrl + PageDown', 'Volgend hoofdstuk'),
       rij('Ctrl + PageUp', 'Vorig hoofdstuk'),
-      rij('Ctrl + F', 'Zoeken en vervangen in het hele manuscript'),
+      rij('Ctrl + F', 'Zoeken en vervangen in het hele manuscript (of typ A12 om naar alinea 12 te gaan)'),
+      rij('Ctrl + Alt + C', 'Klaar voor Claude: je selectie of hoofdstuk met je vraag naar het klembord'),
       rij('Ctrl + Alt + N', 'Notities open/dicht'),
       rij('Ctrl + Alt + H', 'Hoofdstukken'),
       rij('Ctrl + S', 'Nu opslaan (gebeurt ook vanzelf)'),
@@ -522,10 +563,16 @@ function sneltoetsen() {
       wisselNotities();
       return;
     }
+    if (ctrl && e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) {
+      e.preventDefault();
+      openClaude();
+      return;
+    }
     if (ctrl && !e.altKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       if (app.dataset.view !== 'schrijven') zetView('schrijven');
       const sel = String(document.getSelection() || '').trim();
+      if (claude.open) claude.sluit();
       zoeken.toon(sel && sel.length < 60 && !sel.includes('\n') ? sel : '');
       return;
     }
@@ -554,14 +601,14 @@ function sneltoetsen() {
   });
 }
 
-function wisselNotities(tab = null) {
+function wisselNotities(tab = null, id = null) {
   const knop = document.getElementById('knop-notities');
   if (notities.open && !tab) {
     notities.verberg();
     knop.setAttribute('aria-pressed', 'false');
     editor.focus();
   } else {
-    notities.toon(tab);
+    notities.toon(tab, id);
     knop.setAttribute('aria-pressed', 'true');
   }
   requestAnimationFrame(() => editor.herbereken());
@@ -640,7 +687,8 @@ async function start() {
   editor.addEventListener('pagina', () => { werkPaginanummer(); });
   editor.addEventListener('geladen', () => { werkPaginanummer(); werkKicker(); });
   editor.addEventListener('ander-hoofdstuk', (e) => anderHoofdstuk(e.detail));
-  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id) });
+  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id), openOverzicht: () => zetView('hoofdstukken') });
+  editor.addEventListener('geladen', () => kantlijn.werkBij());
   editor.addEventListener('typen', () => kantlijn.verberg());
   zoeken = new Zoeken({
     openTreffer: (id, treffer) => openSchrijven(id, { treffer }),
@@ -649,13 +697,18 @@ async function start() {
   });
   hoofdstukken = new Hoofdstukken({
     openSchrijven: (id, opties) => openSchrijven(id, opties),
-    openNotities: (tab) => { zetView('schrijven'); wisselNotities(tab); },
+    openNotities: (tab, id) => { zetView('schrijven'); wisselNotities(tab, id); },
   });
-  notities = new Notities({ opWijziging: () => { if (app.dataset.view === 'hoofdstukken') hoofdstukken.render(); } });
+  notities = new Notities({
+    opWijziging: () => { if (app.dataset.view === 'hoofdstukken') hoofdstukken.render(); },
+    openMoment: (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } }),
+  });
+  claude = new Claude({ huidigeSelectie, voorKlaar: () => { editor.bewaar(); notitiesBewaar(); } });
+  document.addEventListener('klaar-voor-claude', () => openClaude());
 
   editor.el.setAttribute('contenteditable', 'false');
   // voor de automatische tests en voor wie wil meekijken in de console
-  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, notities, hoofdstukken, zetView, zoeken, kantlijn };
+  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, notities, hoofdstukken, zetView, zoeken, kantlijn, claude };
   if (!(await eenVenster())) return;
   editor.laad(store.meta.huidig);
   werkKicker();

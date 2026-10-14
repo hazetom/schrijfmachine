@@ -4,6 +4,7 @@
 import { store, STATUSSEN } from './store.js';
 import { el, dialoog, woorden } from './ui.js';
 import { mdToBlocks } from './markdown.js';
+import { aanwezig, voorstellen, maakPersonage, voegAliasToe, markeerAls } from './personages.js';
 
 export class Hoofdstukken {
   constructor({ openSchrijven, openNotities }) {
@@ -78,13 +79,18 @@ export class Hoofdstukken {
     const slot = store.meta.vergrendeld;
     const vp = store.meta.vergrendelPagina;
     if (slot.length || vp) {
-      const nrs = lijst.map((h, k) => (slot.includes(h.id) ? k + 1 : null)).filter(Boolean);
+      const posities = lijst.map((h, k) => (slot.includes(h.id) ? k : null)).filter((x) => x !== null);
+      const naam = (k) => { const h = lijst[k]; const n = store.nummer(h.id); return n == null ? (h.titel || 'Zonder titel') : 'hoofdstuk ' + n; };
       let tekst;
-      const aaneen = nrs.length && nrs[nrs.length - 1] - nrs[0] + 1 === nrs.length;
-      if (!nrs.length) tekst = 'Eerdere pagina\'s vergrendeld';
-      else if (nrs.length === 1) tekst = 'Hoofdstuk ' + nrs[0] + ' vergrendeld';
-      else if (aaneen) tekst = 'Hoofdstuk ' + nrs[0] + ' t/m ' + nrs[nrs.length - 1] + ' vergrendeld';
-      else tekst = nrs.length + ' hoofdstukken vergrendeld';
+      const aaneen = posities.length && posities[posities.length - 1] - posities[0] + 1 === posities.length;
+      if (!posities.length) tekst = 'Eerdere pagina\'s vergrendeld';
+      else if (posities.length === 1) tekst = naam(posities[0]) + ' vergrendeld';
+      else if (aaneen) {
+        const na = store.nummer(lijst[posities[0]].id), nb = store.nummer(lijst[posities[posities.length - 1]].id);
+        tekst = (na != null && nb != null ? 'hoofdstuk ' + na + ' t/m ' + nb : naam(posities[0]) + ' t/m ' + naam(posities[posities.length - 1])) + ' vergrendeld';
+      }
+      else tekst = posities.length + ' hoofdstukken vergrendeld';
+      tekst = tekst[0].toUpperCase() + tekst.slice(1);
       s.append(
         el('span', { class: 'links' }, slotIcoon(), tekst),
         el('button', { class: 'knop link', text: 'Ontgrendel', onclick: () => { store.zetVergrendeld([], null); this.render(); } }),
@@ -97,9 +103,10 @@ export class Hoofdstukken {
     }
     const van = el('select', { 'aria-label': 'Vanaf hoofdstuk' });
     const tot = el('select', { 'aria-label': 'Tot en met hoofdstuk' });
+    const kort = (h) => { const n = store.nummer(h.id); const t = (h.titel || 'Zonder titel').slice(0, 18); return n == null ? t : n + ' ' + t; };
     lijst.forEach((h, k) => {
-      van.append(el('option', { value: k, text: String(k + 1) }));
-      tot.append(el('option', { value: k, text: String(k + 1) }));
+      van.append(el('option', { value: k, text: kort(h) }));
+      tot.append(el('option', { value: k, text: kort(h) }));
     });
     const huidigeIndex = Math.max(0, store.meta.volgorde.indexOf(store.meta.huidig));
     tot.value = String(Math.max(0, huidigeIndex - 1));
@@ -119,7 +126,7 @@ export class Hoofdstukken {
   renderLijst() {
     const ol = this.lijstEl;
     ol.innerHTML = '';
-    let nr = 0;
+    const nummers = store.nummers();
     for (const r of store.rijen()) {
       if (r.soort === 'deel') {
         const d = r.deel;
@@ -135,7 +142,7 @@ export class Hoofdstukken {
         continue;
       }
       const h = r.h;
-      nr++;
+      const nr = nummers[h.id];
       const lijn = h.lijn ? store.verhaallijn(h.lijn) : null;
       const kleur = lijn && lijn.kleur;
       const gekozen = h.id === this.gekozen;
@@ -147,7 +154,7 @@ export class Hoofdstukken {
         'data-id': h.id,
         style: gekozen && kleur ? { boxShadow: 'inset 3px 0 0 ' + kleur } : null,
       },
-      el('span', { class: 'hs-nr', text: String(nr) }),
+      el('span', { class: 'hs-nr', text: nr == null ? '' : String(nr) }),
       el('span', { class: 'hs-titel', text: h.titel || 'Zonder titel' }),
       el('span', { class: 'hs-lijn' },
         lijn ? el('span', { class: 'vlak', style: { backgroundColor: kleur || 'transparent' }, 'aria-hidden': 'true' }) : null,
@@ -242,11 +249,16 @@ export class Hoofdstukken {
     }
     const totaal = inDeel.reduce((n, h) => n + (h.woorden || 0), 0);
     const lijst = el('div', { class: 'hs-scenes' });
-    for (const h of inDeel) lijst.append(el('button', { class: 'knop hs-scene', text: h.titel || 'Zonder titel', onclick: () => { this.gekozen = h.id; this.render(); } }));
+    for (const h of inDeel) { const n = store.nummer(h.id); lijst.append(el('button', { class: 'knop hs-scene', text: (n == null ? '' : n + '. ') + (h.titel || 'Zonder titel'), onclick: () => { this.gekozen = h.id; this.render(); } })); }
+    const telling = el('select', { 'aria-label': 'Hoofdstuknummers in dit deel' },
+      el('option', { value: 'door', text: 'Hoofdstuknummers tellen door' }),
+      el('option', { value: 'opnieuw', text: 'Hoofdstuknummers beginnen opnieuw bij 1' }));
+    telling.value = dl.nummering === 'opnieuw' ? 'opnieuw' : 'door';
+    telling.addEventListener('change', () => { store.wijzigDeel(dl.id, { nummering: telling.value }); this.render(); });
     d.append(
       el('span', { class: 'label', text: 'Deel' }),
       titel,
-      el('div', { class: 'hs-gegevens' }, el('span', { text: inDeel.length + (inDeel.length === 1 ? ' hoofdstuk' : ' hoofdstukken') + ' · ' + woorden(totaal) })),
+      el('div', { class: 'hs-gegevens' }, el('span', { text: inDeel.length + (inDeel.length === 1 ? ' hoofdstuk' : ' hoofdstukken') + ' · ' + woorden(totaal) }), telling),
       inDeel.length ? el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Hoofdstukken in dit deel' }), lijst) : el('p', { class: 'leeg-hint', text: 'Nog geen hoofdstukken. Sleep een hoofdstuk op dit deel, of maak er hieronder een.' }),
       el('div', { class: 'hs-klein' },
         el('button', { class: 'knop', text: 'Nieuw hoofdstuk in dit deel', onclick: () => {
@@ -322,6 +334,18 @@ export class Hoofdstukken {
     status.value = h.status;
     status.addEventListener('change', () => { store.wijzigHoofdstuk(h.id, { status: status.value }); this.renderLijst(); });
 
+    const telt = el('select', { 'aria-label': 'Nummering' },
+      el('option', { value: 'ja', text: 'Telt mee' }),
+      el('option', { value: 'nee', text: 'Telt niet mee' }));
+    telt.value = store.isLos(h) ? 'nee' : 'ja';
+    telt.title = 'Een proloog of epiloog krijgt geen hoofdstuknummer';
+    telt.addEventListener('change', () => { store.wijzigHoofdstuk(h.id, { los: telt.value === 'nee' }); this.render(); });
+
+    const samen = el('textarea', { rows: '2', 'aria-label': 'Samenvatting', placeholder: 'Een paar zinnen: wat gebeurt er? Claude kan dit voor je maken (vinkje "Samenvatting maken").' });
+    samen.value = h.samenvatting || '';
+    const groeiSamen = () => { samen.style.height = 'auto'; samen.style.height = samen.scrollHeight + 'px'; };
+    samen.addEventListener('input', () => { store.wijzigHoofdstuk(h.id, { samenvatting: samen.value }); groeiSamen(); });
+
     const doel = el('textarea', { rows: '2', 'aria-label': 'Scènedoel', placeholder: 'Wat moet dit hoofdstuk doen? Wie wil wat, wat staat er op het spel?' });
     doel.value = h.doel || '';
     const groei = () => { doel.style.height = 'auto'; doel.style.height = doel.scrollHeight + 'px'; };
@@ -335,19 +359,22 @@ export class Hoofdstukken {
     const scenes = kopjes.length ? el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Scènes' }),
       el('div', { class: 'hs-scenes' }, ...kopjes.map((x) => el('button', { class: 'knop hs-scene', text: x.t, title: 'Ga naar deze scène', onclick: () => this.openSchrijven(h.id, { blok: x.k }) })))) : null;
     d.append(...[
-      el('span', { class: 'label', text: (deel ? (deel.titel || 'Deel') + ' · ' : '') + 'Hoofdstuk ' + nr + (slot ? ' · vergrendeld' : '') }),
+      el('span', { class: 'label', text: [deel ? (deel.titel || 'Deel') : null, nr == null ? 'Los, zonder nummer' : 'Hoofdstuk ' + nr, slot ? 'vergrendeld' : null].filter(Boolean).join(' · ') }),
       titel,
       el('div', { class: 'hs-gegevens' },
         el('span', { class: 'met-vlak' }, vlak, lijnKeuze),
         el('span', { text: woorden(h.woorden) }),
-        status),
+        status,
+        telt),
       el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Scènedoel' }), doel),
+      el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Samenvatting' }), samen),
       scenes,
+      this.personagesBlok ? this.personagesBlok(h) : null,
       el('div', { class: 'hs-knoppen' },
         el('button', { class: 'knop omlijnd', text: 'Verder schrijven', onclick: () => this.openSchrijven(h.id) })),
       el('div', { class: 'hs-klein' },
-        el('button', { class: 'knop', text: 'Omhoog', title: 'Alt+pijl omhoog', disabled: nr === 1, onclick: () => this.verschuif(h.id, -1) }),
-        el('button', { class: 'knop', text: 'Omlaag', title: 'Alt+pijl omlaag', disabled: nr === store.meta.volgorde.length, onclick: () => this.verschuif(h.id, 1) }),
+        el('button', { class: 'knop', text: 'Omhoog', title: 'Alt+pijl omhoog', disabled: store.meta.volgorde.indexOf(h.id) === 0, onclick: () => this.verschuif(h.id, -1) }),
+        el('button', { class: 'knop', text: 'Omlaag', title: 'Alt+pijl omlaag', disabled: store.meta.volgorde.indexOf(h.id) === store.meta.volgorde.length - 1, onclick: () => this.verschuif(h.id, 1) }),
         el('button', { class: 'knop', text: 'Nieuw hoofdstuk hierna', onclick: () => { this.gekozen = store.nieuwHoofdstuk(h.id); this.render(); this.focusTitel(); } }),
         el('button', { class: 'knop', text: 'Nieuw deel vanaf hier', title: 'Bijvoorbeeld een act die met dit hoofdstuk begint', onclick: () => { const nd = store.nieuwDeel(h.id, 'Nieuw deel'); this.gekozen = nd.id; this.render(); this.focusTitel(); } }),
         el('button', { class: 'knop', text: slot ? 'Ontgrendel dit hoofdstuk' : 'Vergrendel dit hoofdstuk', onclick: () => {
@@ -360,7 +387,37 @@ export class Hoofdstukken {
         el('button', { class: 'knop', text: 'Verwijder', disabled: store.meta.volgorde.length <= 1, onclick: () => this.verwijder(h) }),
       ),
     ].filter(Boolean));
-    requestAnimationFrame(groei);
+    requestAnimationFrame(() => { groei(); groeiSamen(); });
+  }
+
+  // Wie komt er in dit hoofdstuk voor, en welke namen kent de app nog niet?
+  personagesBlok(h) {
+    const aanw = aanwezig(h);
+    const vs = voorstellen(h);
+    if (!aanw.length && !vs.length) return null;
+    const blok = el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Personages' }));
+    if (aanw.length) {
+      blok.append(el('div', { class: 'hs-personen' }, ...aanw.map(({ persoon, aantal }) => el('button', {
+        class: 'hs-persoon', title: 'Open de kaart van ' + persoon.naam, onclick: () => this.openNotities('personages', persoon.id),
+      }, persoon.kleur ? el('span', { class: 'vlak', style: { backgroundColor: persoon.kleur } }) : null, el('span', { class: 'naam', text: persoon.naam }), el('span', { class: 'aantal', text: String(aantal) })))));
+    }
+    if (vs.length) {
+      const personen = store.notities('personages');
+      blok.append(el('span', { class: 'label', text: aanw.length ? 'Volgens mij komen ook voor' : 'Volgens mij komen deze personages voor', style: { marginTop: '8px' } }));
+      const lijst = el('div', {});
+      for (const v of vs.slice(0, 12)) {
+        const zelfde = el('select', { 'aria-label': 'Is dezelfde als' }, el('option', { value: '', text: 'Is dezelfde als…' }), ...personen.map((p) => el('option', { value: p.id, text: p.naam || 'Zonder naam' })));
+        zelfde.addEventListener('change', () => { if (zelfde.value) { voegAliasToe(zelfde.value, v); this.renderDetail(); } });
+        lijst.append(el('div', { class: 'voorstel' },
+          el('span', { class: 'wie' }, v.naam + ' ', el('span', { class: 'aantal', text: '(' + v.aantal + '×)' }), v.aliassen.length ? el('span', { class: 'ook', text: 'ook: ' + v.aliassen.join(', ') }) : null),
+          el('button', { class: 'knop', text: 'Personage', title: 'Toevoegen als nieuw personage', onclick: () => { maakPersonage(v); this.renderDetail(); } }),
+          personen.length ? zelfde : null,
+          el('button', { class: 'knop', text: 'Plaats', onclick: () => { markeerAls(v.naam, 'plaats'); this.renderDetail(); } }),
+          el('button', { class: 'knop', text: 'Negeren', onclick: () => { markeerAls(v.naam, 'negeer'); this.renderDetail(); } })));
+      }
+      blok.append(lijst);
+    }
+    return blok;
   }
 
   async verwijder(h) {

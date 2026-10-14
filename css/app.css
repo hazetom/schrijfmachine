@@ -389,3 +389,47 @@ a:hover { color: var(--inkt); }
 .instelling select { font: inherit; font-size: 14px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 4px 6px; }
 .status.update #status-tekst { color: var(--blauw); text-decoration: underline; text-underline-offset: 4px; }
 ::highlight(zoektreffer) { background-color: var(--selectie); }
+.kl-overzicht {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 0 6px; margin-bottom: 10px; border: 0; border-bottom: 1px solid var(--lijn);
+  background: transparent; text-align: left; color: var(--grijs-donker); cursor: pointer; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.kl-overzicht::before { content: '\2039'; font-size: 16px; line-height: 1; }
+.kl-overzicht:hover { color: var(--inkt); }
+
+/* ---------- Klaar voor Claude ---------- */
+.claudepaneel { width: min(460px, calc(100vw - 64px)); overflow-y: auto; gap: 4px; }
+.cl-kop { display: flex; justify-content: space-between; align-items: center; }
+.cl-kop h2 { margin: 0; font-size: 20px; font-weight: 400; }
+.cl-blok { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: 1px solid var(--lijn); }
+.cl-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); }
+.cl-rij select { font: inherit; font-size: 14px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 5px 6px; width: 100%; }
+.cl-vink { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
+.cl-vink input { margin-top: 4px; }
+.cl-vink > span { display: flex; flex-direction: column; }
+.cl-vink-titel { font-size: 14px; color: var(--inkt); }
+.cl-uitleg { font-size: 12px; color: var(--grijs); line-height: 1.4; }
+.cl-vink.uit { opacity: 0.45; cursor: default; }
+.cl-ctx-rij { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--grijs-donker); padding-top: 4px; }
+.cl-vraag { font: inherit; font-size: 14px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 6px 8px; resize: vertical; margin-top: 4px; }
+.cl-voet { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--lijn); align-items: flex-start; }
+.cl-info { margin: 0; font-size: 12px; color: var(--grijs); }
+.cl-melding { margin: 0; font-size: 13px; color: var(--groen); min-height: 1em; }
+
+/* ---------- personages in het hoofdstukkenscherm en op de kaart ---------- */
+.hs-personen { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.hs-persoon { border: 0; background: transparent; padding: 0; min-height: 30px; font-size: 15px; color: var(--inkt); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.hs-persoon .aantal { font-size: 12px; color: var(--grijs); }
+.hs-persoon:hover .naam { text-decoration: underline; text-underline-offset: 4px; }
+.voorstel { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 0; border-bottom: 1px solid var(--lijn); font-size: 14px; }
+.voorstel:last-child { border-bottom: 0; }
+.voorstel .wie { flex: 1 1 200px; }
+.voorstel .ook { display: block; font-size: 12px; color: var(--grijs); }
+.voorstel .knop { min-height: 32px; padding: 0 6px; font-size: 13px; color: var(--blauw); }
+.voorstel select { font: inherit; font-size: 13px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 3px 4px; max-width: 160px; }
+.tijdlijn { flex: none; border-top: 1px solid var(--lijn); font-size: 13px; max-height: 38%; overflow-y: auto; }
+.tijdlijn summary { cursor: pointer; padding: 8px 0; color: var(--grijs-donker); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.tl-hoofdstuk { margin: 6px 0 2px; font-size: 12px; color: var(--grijs); }
+.tl-moment { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 4px 0; font-size: 13px; line-height: 1.45; color: var(--inkt-zacht); cursor: pointer; }
+.tl-moment:hover { color: var(--inkt); text-decoration: underline; text-underline-offset: 3px; }
+.aliasveld { font: inherit; font-size: 13px; border: 0; border-bottom: 1px solid transparent; background: transparent; padding: 2px 0; color: var(--grijs-donker); width: 100%; }
+.aliasveld:focus { border-bottom-color: var(--lijn); }

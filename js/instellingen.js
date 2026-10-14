@@ -1,12 +1,14 @@
 // Instellingen per apparaat (avondstand, volledig scherm, slimme aanhalingstekens).
 // Klein en niet kritiek, dus in localStorage; als dat niet lukt gelden de standaardwaarden.
 
-export const VERSIE = 4;
+export const VERSIE = 5;
 
 const STANDAARD = {
   avond: 'uit',          // uit | aan | auto (van 20:00 tot 7:00)
   volledigScherm: true,  // bij de eerste toets of klik naar volledig scherm
   typografie: true,      // “ ” ‘ ’ en … tijdens het typen
+  kantlijnVast: false,   // hoofdstukken altijd links in beeld
+  claude: null,          // laatste keuzes in "Klaar voor Claude"
 };
 
 const SLEUTEL = 'schrijfmachine-instellingen';

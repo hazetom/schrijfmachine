@@ -2,7 +2,7 @@
 // Bij een nieuwe versie verandert VERSIE (en VERSIE in js/instellingen.js). De nieuwe bestanden
 // worden op de achtergrond opgehaald; de app meldt rechtsonder "Nieuwe versie klaar" en
 // stuurt na jouw klik 'bijwerken', waarna deze versie het overneemt.
-const VERSIE = 'schrijfmachine-4';
+const VERSIE = 'schrijfmachine-5';
 const BESTANDEN = [
   './',
   'index.html',
@@ -27,6 +27,8 @@ const BESTANDEN = [
   'js/instellingen.js',
   'js/kantlijn.js',
   'js/zoeken.js',
+  'js/personages.js',
+  'js/claude.js',
   'fonts/literata-latin-opsz-normal.woff2',
   'fonts/literata-latin-opsz-italic.woff2',
   'fonts/literata-latin-ext-opsz-normal.woff2',

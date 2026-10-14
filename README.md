@@ -53,7 +53,7 @@ Er zijn drie lagen, zodat er niets mis kan gaan:
 
 ```
 Manuscript/
-  schrijfmachine.json          volgorde, delen, titels, verhaallijnen, status, scènedoelen
+  schrijfmachine.json          volgorde, delen, titels, verhaallijnen, status, scènedoelen, samenvattingen, plaatsnamen
   Hoofdstukken/
     proloog-k3f9.md            één bestand per hoofdstuk
     act-1-de-moeder-a81c.md
@@ -73,9 +73,34 @@ De Markdown is gewoon leesbaar: `**vet**`, `*cursief*`, `## Kopje` en `* * *` vo
 
 In **Hoofdstukken** maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren · De moeder". In de export krijgt elk deel een eigen pagina.
 
+## Nummering
+
+Hoofdstukken krijgen vanzelf een nummer. Een **Proloog**, **Epiloog**, **Intermezzo** of **Voorwoord** telt niet mee; bij elk ander hoofdstuk kun je dat zelf aanzetten met "Telt niet mee". Per deel (act) kies je of de nummers **doortellen** of **opnieuw bij 1 beginnen**. Bovenin staat dan bijvoorbeeld "Act 1 · De verhoren · Hoofdstuk 1 · De moeder".
+
+## Klaar voor Claude
+
+Selecteer een stuk tekst (of niets) en klik in het balkje op **CLAUDE**, of druk **Ctrl+Alt+C**. Je kiest:
+
+- **Wat er mee moet:** je selectie, dit hoofdstuk, dit deel of het hele boek. Bij een deel of het boek kies je de volledige tekst of alleen de samenvattingen en scènedoelen, dat is veel lichter.
+- **Context:** scènedoel, de personagekaarten van wie erin voorkomt, de samenvatting van het vorige hoofdstuk.
+- **Wat je wilt weten:** Correctie, Stijl en ritme, De scène, Verhaal en samenhang, Als lezer, plus een eigen vraag. Bij een hoofdstuk kan Claude ook een **samenvatting maken** voor het veld Samenvatting.
+- **Hoe ver Claude mag gaan:** aanwijzen (jij herschrijft), voorstellen per zin (standaard), of herschrijven met uitleg.
+
+**Klaar voor Claude** zet het verzoek op het klembord; plak het in je Claude-project. De tekst krijgt alineanummers (A12); in de app typ je **A12** in het zoekveld (Ctrl+F) om er meteen naartoe te gaan. De app onthoudt je keuzes.
+
+**Eenmalig:** maak in Claude een project (bijvoorbeeld "Boek") en plak bij de instructies de tekst die je krijgt met **Projectinstructies kopiëren** onderin het paneel. Je book bible kun je als kennis aan dat project toevoegen.
+
+## Personages herkennen
+
+In het hoofdstukkenscherm staat per hoofdstuk wie erin voorkomt en welke namen de app nog niet kent ("Volgens mij komen ook voor"). Per naam kies je **Personage**, **Is dezelfde als…** (voor een bijnaam of een andere schrijfwijze), **Plaats** of **Negeren**.
+
+Een bevestigd personage is overal dezelfde persoon: "Frank Philips" maakt ook elke losse "Frank" en "Philips" tot dezelfde Frank, en wat je toevoegt bij **Ook genoemd als** (op de personagekaart) telt ook mee. Op de kaart zie je onder **Komt voor in** per hoofdstuk de zinnen waarin hij of zij genoemd wordt; een klik brengt je erheen. Met **Klaar voor Claude** op de kaart gaan precies die passages mee om de kaart te laten bijwerken.
+
+Dit gaat zonder AI, dus "hij" en "zij" telt de app niet, en een rol zonder naam ("de ober") vindt hij pas als je die zelf als personage aanmaakt.
+
 ## Tijdens het schrijven
 
-- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg.
+- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (terug naar het hoofdstukkenscherm), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
 - **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
 - **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
 - **Scènes.** De kopjes in een hoofdstuk staan in het hoofdstukkenscherm onder het scènedoel; een klik brengt je erheen.
@@ -102,7 +127,8 @@ Elke export krijgt de datum en tijd in de naam, zodat een eerdere export nooit w
 | PageDown / PageUp | Volgende / vorige pagina |
 | Klik in de lege rand links of rechts | Bladeren |
 | Ctrl+PageDown / Ctrl+PageUp | Volgend / vorig hoofdstuk |
-| Ctrl+F | Zoeken en vervangen |
+| Ctrl+F | Zoeken en vervangen (of A12: naar alinea 12) |
+| Ctrl+Alt+C | Klaar voor Claude |
 | Ctrl+Alt+N | Notities open/dicht |
 | Ctrl+Alt+H | Hoofdstukken |
 | Ctrl+S | Nu opslaan (gebeurt ook vanzelf) |
@@ -147,6 +173,8 @@ Gewone HTML, CSS en JavaScript-modules, zonder build-stap. Alles wordt rechtstre
 | `js/snapshots.js` | automatische versies |
 | `js/kantlijn.js` | hoofdstukken in de linkerkantlijn |
 | `js/zoeken.js` | zoeken en vervangen |
+| `js/claude.js` | Klaar voor Claude en de projectinstructies |
+| `js/personages.js` | personages herkennen, koppelen en terugvinden |
 | `js/instellingen.js` | avondstand, volledig scherm, typografie, versienummer |
 | `js/docx.js`, `js/zip.js` | export en import van .docx |
 | `test.html`, `js/test-page.js` | controlepagina voor de opslag |

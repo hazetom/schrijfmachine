@@ -49,6 +49,7 @@ function toonBalk() {
   const b = balk();
   b.hidden = false;
   b.querySelector('[data-opmaak="scene"]').hidden = veld.dataset.scene === 'nee';
+  b.querySelector('[data-opmaak="claude"]').hidden = veld.id !== 'tekst';
   const bw = b.offsetWidth, bh = b.offsetHeight;
   let x = r.left + Math.min(r.width, 200) / 2 - bw / 2;
   let y = r.top - bh - 10;
@@ -92,6 +93,9 @@ export function voerUit(veld, wat) {
   } else if (wat === 'scene') {
     if (veld.dataset.scene === 'nee') return;
     sceneNa(veld);
+  } else if (wat === 'claude') {
+    document.dispatchEvent(new CustomEvent('klaar-voor-claude'));
+    return;
   }
   normaliseer(veld);
   veld.dispatchEvent(new CustomEvent('rijk-wijziging'));

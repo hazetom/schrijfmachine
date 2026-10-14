@@ -4,9 +4,12 @@ import { store, TABS, KLEUREN } from './store.js';
 import { el, dialoog } from './ui.js';
 import { maakRijk } from './richtext.js';
 import { mdToHtml, domToMd } from './markdown.js';
+import { tijdlijn } from './personages.js';
+import { personageVerzoek, naarKlembord } from './claude.js';
 
 export class Notities {
-  constructor({ opWijziging }) {
+  constructor({ opWijziging, openMoment }) {
+    this.openMoment = openMoment || (() => {});
     this.paneel = document.getElementById('notities');
     this.tabsEl = document.getElementById('notitie-tabs');
     this.lijstEl = document.getElementById('notitie-lijst');
@@ -21,8 +24,9 @@ export class Notities {
 
   get open() { return !this.paneel.hidden; }
 
-  toon(tab = null) {
+  toon(tab = null, id = null) {
     if (tab) this.tab = tab;
+    if (tab && id) this.gekozen[tab] = id;
     this.paneel.hidden = false;
     this.paneel.closest('.schrijfvlak').classList.add('met-notities');
     this.render();
@@ -111,6 +115,15 @@ export class Notities {
       sub.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tekst.focus(); } });
       d.append(sub);
     }
+    if (this.tab === 'personages') {
+      const alias = el('input', { class: 'aliasveld', type: 'text', value: (it.aliassen || []).join(', '), placeholder: 'Ook genoemd als (bijvoorbeeld: Frank, meneer Philips)', 'aria-label': 'Ook genoemd als' });
+      alias.addEventListener('change', () => {
+        const lijst = alias.value.split(',').map((x) => x.trim()).filter(Boolean);
+        store.wijzigNotitie('personages', it.id, { aliassen: lijst });
+        this.render();
+      });
+      d.append(alias);
+    }
     if (this.tab !== 'ideeen') {
       const kleuren = el('div', { class: 'kleuren', role: 'group', 'aria-label': 'Kleur' });
       const geen = el('button', { class: 'kleur-keuze', 'aria-pressed': !it.kleur ? 'true' : 'false', title: 'Geen kleur', 'aria-label': 'Geen kleur' }, el('span', { style: { outline: '1px solid var(--lijn)', outlineOffset: '-1px' } }));
@@ -137,13 +150,40 @@ export class Notities {
     tekst.dataset.id = it.id;
     this.tekstVeld = tekst;
     d.append(tekst);
+    if (this.tab === 'personages') d.append(this.tijdlijnBlok(it));
     const items = store.notities(this.tab);
     const k = items.indexOf(it);
     d.append(el('div', { class: 'notitie-acties' },
       el('div', {},
         el('button', { class: 'knop', text: 'Omhoog', disabled: k === 0, onclick: () => { this.bewaar(); store.verplaatsNotitie(this.tab, it.id, -1); this.render(); } }),
         el('button', { class: 'knop', text: 'Omlaag', disabled: k === items.length - 1, onclick: () => { this.bewaar(); store.verplaatsNotitie(this.tab, it.id, 1); this.render(); } })),
-      el('button', { class: 'knop', text: 'Verwijder', onclick: () => this.verwijder(it) })));
+      el('div', {},
+        this.tab === 'personages' ? el('button', { class: 'knop', text: 'Klaar voor Claude', title: 'Kopieer een verzoek om deze kaart bij te werken, met alle passages waarin dit personage voorkomt', onclick: async (e) => {
+          this.bewaar();
+          const ok = await naarKlembord(personageVerzoek(store.notities('personages').find((x) => x.id === it.id)));
+          e.target.textContent = ok ? 'Gekopieerd' : 'Kopiëren lukte niet';
+          setTimeout(() => { e.target.textContent = 'Klaar voor Claude'; }, 3000);
+        } }) : null,
+        el('button', { class: 'knop', text: 'Verwijder', onclick: () => this.verwijder(it) }))));
+  }
+
+  // Waar komt dit personage voor? Per hoofdstuk de zinnen, klikbaar.
+  tijdlijnBlok(it) {
+    const lijn = tijdlijn(it.id);
+    const totaal = lijn.reduce((n, x) => n + x.momenten.length, 0);
+    const details = el('details', { class: 'tijdlijn' }, el('summary', { text: totaal ? `Komt voor in ${lijn.length} ${lijn.length === 1 ? 'hoofdstuk' : 'hoofdstukken'} (${totaal}×)` : 'Nog nergens in de tekst gevonden' }));
+    for (const { h, momenten } of lijn) {
+      const n = store.nummer(h.id);
+      details.append(el('div', { class: 'tl-hoofdstuk', text: (n == null ? '' : n + '. ') + (h.titel || 'Zonder titel') + ' · ' + momenten.length + '×' }));
+      const gezien = new Set();
+      for (const m of momenten) {
+        if (gezien.has(m.blok + ':' + m.zin)) continue;
+        gezien.add(m.blok + ':' + m.zin);
+        if (gezien.size > 30) break;
+        details.append(el('button', { class: 'tl-moment', text: m.zin.length > 160 ? m.zin.slice(0, 160) + '…' : m.zin, onclick: () => this.openMoment(h.id, m) }));
+      }
+    }
+    return details;
   }
 
   renderLijstStil() {

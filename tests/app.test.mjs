@@ -723,7 +723,7 @@ await test('delen: act toevoegen, slepen, kop bovenin, export en weer import', a
   await p.click('text=Nieuw deel vanaf hier');
   await p.fill('.titelveld', 'Act 2 · Gevangen');
   const lijst = await p.$$eval('#hs-lijst .hs-rij', (r) => r.map((x) => x.textContent.trim().slice(0, 22)));
-  assert.deepEqual(lijst.map((t) => t.replace(/Concept.*$/, '').trim()), ['1Proloog', 'Act 1 · De verhoren', '2De moeder', '3De zus', 'Act 2 · Gevangen', '4Het vonnis']);
+  assert.deepEqual(lijst.map((t) => t.replace(/Concept.*$/, '').trim()), ['Proloog', 'Act 1 · De verhoren', '1De moeder', '2De zus', 'Act 2 · Gevangen', '3Het vonnis']);
   // De zus naar act 2 slepen: op de kop van het deel
   await p.dragAndDrop('.hs-rij >> text=De zus', '.hs-rij >> text=Act 2 · Gevangen');
   await p.waitForTimeout(100);
@@ -737,7 +737,7 @@ await test('delen: act toevoegen, slepen, kop bovenin, export en weer import', a
   await p.evaluate(() => { const s = window.__schrijfmachine.store; const m = s.lijst().find((h) => h.titel === 'De moeder'); s.zetAanBeginVanDeel(m.id, s.delen()[0].id); });
   await p.click('.hs-rij >> text=De moeder');
   await p.click('text=Verder schrijven');
-  assert.equal(await p.textContent('#kicker'), 'Act 1 · De verhoren · De moeder');
+  assert.equal(await p.textContent('#kicker'), 'Act 1 · De verhoren · Hoofdstuk 1 · De moeder');
   await wachtOpslag(p);
   const json = JSON.parse(await opfsLees(p, 'delen', 'schrijfmachine.json'));
   assert.equal(json.delen.length, 2);
@@ -802,7 +802,7 @@ await test('kantlijn: hoofdstukken links bij muis, klik springt, typen verbergt'
   assert.ok((await p.textContent('#kantlijn')).includes('Frank ontmoeten.'));
   await p.screenshot({ path: UIT + 'kantlijn.png' });
   await p.click('#kantlijn >> text=De moeder');
-  assert.equal(await p.textContent('#kicker'), 'Act 1 · De verhoren · De moeder');
+  assert.equal(await p.textContent('#kicker'), 'Act 1 · De verhoren · Hoofdstuk 1 · De moeder');
   await p.mouse.move(160, 300);
   await p.mouse.move(150, 320);
   assert.equal(await p.isVisible('#kantlijn'), true);
@@ -936,6 +936,222 @@ await test('volledig scherm bij de eerste toets', async () => {
   await p.keyboard.type('b');
   await p.waitForTimeout(200);
   assert.equal(await p.evaluate(() => !!document.fullscreenElement), false, 'zelf eruit gegaan: niet opnieuw opdringen');
+  await ctx.close();
+});
+
+// ---------------------------------------------------------------- versie 5: nummering, Claude, personages
+await test('nummering: proloog telt niet mee, per act doortellen of opnieuw', async () => {
+  const ctx = await nieuweContext();
+  const p = await open(ctx, 'nummers');
+  await p.evaluate(() => {
+    const s = window.__schrijfmachine.store;
+    s.wijzigHoofdstuk(s.meta.huidig, { titel: 'Proloog' });
+    const a = s.nieuwHoofdstuk(null, 'De moeder');
+    s.nieuwHoofdstuk(null, 'De zus');
+    const c = s.nieuwHoofdstuk(null, 'Het vonnis');
+    s.nieuwHoofdstuk(null, 'Epiloog');
+    s.nieuwDeel(a, 'Act 1');
+    s.nieuwDeel(c, 'Act 2');
+  });
+  const nrs = () => p.evaluate(() => window.__schrijfmachine.store.lijst().map((h) => window.__schrijfmachine.store.nummer(h.id)));
+  assert.deepEqual(await nrs(), [null, 1, 2, 3, null]);
+  await p.click('#knop-hoofdstukken');
+  await p.click('.hs-rij >> text=Act 2');
+  await p.selectOption('.hs-gegevens select', 'opnieuw');
+  assert.deepEqual(await nrs(), [null, 1, 2, 1, null]);
+  // zelf aangeven dat een hoofdstuk niet meetelt
+  await p.click('.hs-rij >> text=De zus');
+  await p.selectOption('select[aria-label="Nummering"]', 'nee');
+  assert.deepEqual(await nrs(), [null, 1, null, 1, null]);
+  assert.ok((await p.textContent('.hs-detail .label')).includes('Los, zonder nummer'));
+  await p.selectOption('select[aria-label="Nummering"]', 'ja');
+  await p.click('.hs-rij >> text=Het vonnis');
+  await p.click('text=Verder schrijven');
+  assert.equal(await p.textContent('#kicker'), 'Act 2 · Hoofdstuk 1 · Het vonnis');
+  await p.keyboard.press('Control+PageUp');
+  await p.keyboard.press('Control+PageUp');
+  await p.keyboard.press('Control+PageUp');
+  await p.waitForTimeout(200);
+  assert.equal(await p.textContent('#kicker'), 'Proloog');
+  await wachtOpslag(p);
+  const json = JSON.parse(await opfsLees(p, 'nummers', 'schrijfmachine.json'));
+  assert.equal(json.delen.find((d) => d.titel === 'Act 2').nummering, 'opnieuw');
+  assert.deepEqual(p.fouten, []);
+  await ctx.close();
+});
+
+await test('kantlijn: Overzicht en altijd tonen', async () => {
+  const ctx = await nieuweContext({ width: 1536, height: 864 });
+  const p = await open(ctx, 'kantlijn2');
+  await p.mouse.move(150, 300);
+  await p.click('#kantlijn .kl-overzicht');
+  assert.equal(await p.evaluate(() => document.getElementById('app').dataset.view), 'hoofdstukken');
+  await p.click('#knop-terug');
+  await p.evaluate(async () => (await import('./js/instellingen.js')).zet('kantlijnVast', true));
+  await p.waitForTimeout(100);
+  assert.equal(await p.isVisible('#kantlijn'), true);
+  await p.keyboard.type('typen laat hem staan');
+  assert.equal(await p.isVisible('#kantlijn'), true);
+  await p.mouse.move(800, 300);
+  assert.equal(await p.isVisible('#kantlijn'), true);
+  await p.screenshot({ path: UIT + 'kantlijn-vast.png' });
+  await p.evaluate(async () => (await import('./js/instellingen.js')).zet('kantlijnVast', false));
+  await ctx.close();
+});
+
+await test('Klaar voor Claude: selectie, vinkjes, ingrijpen, klembord, A-nummers', async () => {
+  const ctx = await nieuweContext();
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASIS });
+  const p = await open(ctx, 'claude');
+  await p.evaluate(() => {
+    const s = window.__schrijfmachine.store;
+    s.zetTitel('De proef');
+    s.wijzigHoofdstuk(s.meta.huidig, { titel: 'De moeder', doel: 'Eleanor laten twijfelen.', samenvatting: '' });
+    s.zetTekst(s.meta.huidig, '## Edinburgh\n\nHet felle licht zoemde.\n\n* * *\n\nMurray schatte haar *begin vijftig*.\n\nDe automaat stopte met pruttelen.\n');
+    window.__schrijfmachine.editor.verwerp();
+    window.__schrijfmachine.editor.laad(s.meta.huidig);
+  });
+  await p.waitForTimeout(200);
+  // selecteer de alinea "Murray schatte..." helemaal
+  await p.evaluate(() => {
+    const el = window.__schrijfmachine.editor.el;
+    const blok = [...el.children].find((c) => c.textContent.startsWith('Murray'));
+    const r = document.createRange(); r.selectNodeContents(blok);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  });
+  await p.waitForTimeout(100);
+  await p.click('#opmaakbalk [data-opmaak="claude"]');
+  await p.waitForSelector('#claudepaneel:not([hidden])');
+  assert.equal(await p.$eval('#claudepaneel select', (s) => s.value), 'selectie');
+  // correctie en stijl staan standaard aan; zet ook "als lezer" aan
+  await p.click('#claudepaneel .cl-vink[data-key="lezer"]');
+  assert.equal(await p.$eval('#claudepaneel .cl-vink[data-key="verhaal"] input', (i) => i.disabled), true, 'verhaal niet bij een selectie');
+  await p.fill('#claudepaneel .cl-vraag', 'Is "begin vijftig" te vaag?');
+  await p.click('#claudepaneel .knop.omlijnd');
+  await p.waitForTimeout(200);
+  assert.ok((await p.textContent('.cl-melding')).includes('Gekopieerd'));
+  const tekst = await p.evaluate(() => navigator.clipboard.readText());
+  fs.writeFileSync(UIT + 'claude-selectie.txt', tekst);
+  assert.ok(tekst.includes('Boek: De proef'));
+  assert.ok(tekst.includes('- Correctie:') && tekst.includes('- Stijl en ritme:') && tekst.includes('- Als lezer:'));
+  assert.ok(!tekst.includes('- Verhaal en samenhang:'));
+  assert.ok(tekst.includes('Mijn eigen vraag: Is "begin vijftig" te vaag?'));
+  assert.ok(tekst.includes('concreet alternatief'), 'standaard: voorstellen per zin');
+  assert.ok(tekst.includes('Scènedoel: Eleanor laten twijfelen.'));
+  assert.ok(tekst.includes('[A3] Murray schatte haar *begin vijftig*.'), tekst);
+  assert.ok(!tekst.includes('[A2]'), 'alleen de selectie');
+  assert.ok(!tekst.includes('—'), 'geen gedachtestreepjes');
+  // hele hoofdstuk met samenvatting maken en herschrijven
+  await p.selectOption('#claudepaneel select[aria-label="Wat moet er mee"]', 'hoofdstuk');
+  await p.selectOption('#claudepaneel select[aria-label="Hoe ver mag Claude ingrijpen"]', 'herschrijven');
+  await p.click('#claudepaneel .cl-vink:has-text("Samenvatting maken")');
+  await p.click('#claudepaneel .knop.omlijnd');
+  await p.waitForTimeout(200);
+  const t2 = await p.evaluate(() => navigator.clipboard.readText());
+  assert.ok(t2.includes('[A1] (kopje) Edinburgh') && t2.includes('[A2] Het felle licht zoemde.') && t2.includes('* * *') && t2.includes('[A4] De automaat'));
+  assert.ok(t2.includes('Samenvatting voor de app') && t2.includes('bewerkte versie'));
+  // hele boek als samenvattingen: correctie kan dan niet
+  await p.selectOption('#claudepaneel select[aria-label="Wat moet er mee"]', 'boek');
+  await p.selectOption('#claudepaneel select[aria-label="Volledige tekst of samenvattingen"]', 'samenvattingen');
+  assert.equal(await p.$eval('#claudepaneel .cl-vink[data-key="correctie"] input', (i) => i.disabled), true);
+  await p.click('#claudepaneel .knop.omlijnd');
+  await p.waitForTimeout(200);
+  const t3 = await p.evaluate(() => navigator.clipboard.readText());
+  assert.ok(t3.includes('(nog geen samenvatting)') && !t3.includes('- Correctie:'));
+  // keuzes blijven bewaard
+  await p.keyboard.press('Escape');
+  assert.equal(await p.isVisible('#claudepaneel'), false);
+  // projectinstructies
+  await p.keyboard.press('Control+Alt+c');
+  await p.click('#claudepaneel >> text=Projectinstructies kopiëren');
+  await p.waitForTimeout(200);
+  const instr = await p.evaluate(() => navigator.clipboard.readText());
+  assert.ok(instr.includes('Bewaak mijn stem') && !instr.includes('—'));
+  await p.screenshot({ path: UIT + 'claude-paneel.png' });
+  await p.keyboard.press('Escape');
+  // A-nummer zoeken
+  await p.keyboard.press('Control+f');
+  await p.keyboard.type('A4');
+  await p.waitForTimeout(250);
+  await p.keyboard.press('Enter');
+  await p.waitForTimeout(250);
+  const mark = await p.evaluate(() => [...CSS.highlights.get('zoektreffer')][0].toString());
+  assert.equal(mark, 'De automaat stopte met pruttelen.');
+  assert.deepEqual(p.fouten, []);
+  await ctx.close();
+});
+
+await test('personages: voorstellen, koppelen, tijdlijn en kaart voor Claude', async () => {
+  const ctx = await nieuweContext({ width: 1536, height: 864 });
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASIS });
+  const p = await open(ctx, 'personen');
+  await p.evaluate(() => {
+    const s = window.__schrijfmachine.store;
+    s.wijzigHoofdstuk(s.meta.huidig, { titel: 'Proloog' });
+    s.zetTekst(s.meta.huidig, 'Frank Philips lag roerloos op zijn rug. Naast hem sliep Sarah.\n\nFrank keek naar het plafond. Sarah draaide zich om.\n\n“Dokter Philips?” vroeg de ober. Frank knikte.\n');
+    s.nieuwHoofdstuk(null, 'De moeder', { md: 'Murray keek naar mevrouw Ashworth. Eleanor Ashworth zweeg.\n\n“Mevrouw Ashworth,” zei Murray. Het ging over Frank.\n\nEleanor dacht aan Sarah. In Edinburgh regende het, zoals altijd in Edinburgh.\n\n“Nee,” zei Ellie zacht.\n' });
+    window.__schrijfmachine.editor.verwerp();
+    window.__schrijfmachine.editor.laad(s.meta.huidig);
+  });
+  await p.click('#knop-hoofdstukken');
+  const voorstel1 = await p.$$eval('.voorstel .wie', (w) => w.map((x) => x.textContent));
+  assert.ok(voorstel1[0].startsWith('Frank Philips') && voorstel1[0].includes('ook: Frank, Philips, dokter Philips'), voorstel1.join(' | '));
+  assert.ok(voorstel1.some((x) => x.startsWith('Sarah')));
+  await p.click('.voorstel:has-text("Frank Philips") >> text=Personage');
+  await p.click('.voorstel:has-text("Sarah") >> text=Personage');
+  assert.deepEqual(await p.$$eval('.hs-persoon .naam', (n) => n.map((x) => x.textContent)), ['Frank Philips', 'Sarah']);
+  assert.equal(await p.$$eval('.voorstel', (v) => v.length), 0);
+  // hoofdstuk 2: Frank en Sarah worden herkend, nieuwe namen voorgesteld
+  await p.click('.hs-rij >> text=De moeder');
+  const aanwezig2 = await p.$$eval('.hs-persoon .naam', (n) => n.map((x) => x.textContent));
+  assert.ok(aanwezig2.includes('Frank Philips') && aanwezig2.includes('Sarah'), 'Frank en Sarah herkend: ' + aanwezig2);
+  const voorstel2 = await p.$$eval('.voorstel .wie', (w) => w.map((x) => x.textContent));
+  assert.ok(voorstel2.some((x) => x.startsWith('Eleanor Ashworth') && x.includes('mevrouw Ashworth')), voorstel2.join(' | '));
+  assert.ok(voorstel2.some((x) => x.startsWith('Murray')));
+  await p.screenshot({ path: UIT + 'personages-voorstellen.png' });
+  await p.click('.voorstel:has-text("Edinburgh") >> text=Plaats');
+  await p.click('.voorstel:has-text("Eleanor Ashworth") >> text=Personage');
+  // een personage "Patrick Murray" maakt elke losse "Murray" vanzelf dezelfde persoon
+  await p.evaluate(() => window.__schrijfmachine.store.nieuweNotitie('personages', { naam: 'Patrick Murray' }));
+  await p.click('.hs-rij >> text=Proloog');
+  await p.click('.hs-rij >> text=De moeder');
+  assert.ok(!(await p.$$eval('.voorstel .wie', (w) => w.map((x) => x.textContent))).some((x) => x.startsWith('Murray')), 'Murray automatisch gekoppeld');
+  // een bijnaam koppel je met "Is dezelfde als"
+  await p.selectOption('.voorstel:has-text("Ellie") select', { label: 'Eleanor Ashworth' });
+  assert.equal(await p.$$eval('.voorstel', (v) => v.length), 0, 'alles ingedeeld');
+  const namen = await p.$$eval('.hs-persoon .naam', (n) => n.map((x) => x.textContent));
+  assert.deepEqual(namen.sort(), ['Eleanor Ashworth', 'Frank Philips', 'Patrick Murray', 'Sarah']);
+  // kaart van Eleanor: ook genoemd als, tijdlijn
+  await p.click('.hs-persoon:has-text("Eleanor Ashworth")');
+  await p.waitForSelector('#notities:not([hidden]) .aliasveld');
+  assert.ok((await p.inputValue('.aliasveld')).includes('mevrouw Ashworth') && (await p.inputValue('.aliasveld')).includes('Ellie'));
+  await p.click('.tijdlijn summary');
+  assert.ok((await p.textContent('.tijdlijn summary')).includes('1 hoofdstuk'));
+  const momenten = await p.$$eval('.tl-moment', (m) => m.map((x) => x.textContent));
+  assert.ok(momenten.some((m) => m.includes('Mevrouw Ashworth')), 'hoofdletter aan zinsbegin ook herkend: ' + momenten);
+  await p.click('.tl-moment >> nth=1');
+  await p.waitForTimeout(250);
+  assert.equal(await p.textContent('#kicker'), 'Hoofdstuk 1 · De moeder');
+  // personagekaart voor Claude
+  await p.click('#notitie-detail >> text=Klaar voor Claude');
+  await p.waitForTimeout(200);
+  const verzoek = await p.evaluate(() => navigator.clipboard.readText());
+  fs.writeFileSync(UIT + 'claude-personage.txt', verzoek);
+  assert.ok(verzoek.includes('Personage: Eleanor Ashworth') && verzoek.includes('Ook genoemd als: Eleanor Ashworth, ') && verzoek.includes('### Hoofdstuk 1 · De moeder') && verzoek.includes('[A1]'));
+  // Frank komt in beide hoofdstukken voor, ook als alleen "Frank"
+  const tl = await p.evaluate(async () => {
+    const { tijdlijn } = await import('./js/personages.js');
+    const s = window.__schrijfmachine.store;
+    const f = s.notities('personages').find((x) => x.naam === 'Frank Philips');
+    return tijdlijn(f.id).map((x) => [x.h.titel, x.momenten.length]);
+  });
+  assert.deepEqual(tl, [['Proloog', 4], ['De moeder', 1]]);
+  await wachtOpslag(p);
+  const pers = await opfsLees(p, 'personen', 'Notities/Personages.md');
+  assert.ok(pers.includes('"aliassen":["Frank","Philips","dokter Philips"]'), pers);
+  const json = JSON.parse(await opfsLees(p, 'personen', 'schrijfmachine.json'));
+  assert.deepEqual(json.namen.plaatsen, ['Edinburgh']);
+  assert.deepEqual(p.fouten, []);
   await ctx.close();
 });
 
