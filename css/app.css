@@ -153,7 +153,7 @@ a:hover { color: var(--inkt); }
 }
 .met-notities .blad { padding-top: 32px; }
 .bladzone {
-  position: absolute; top: 0; bottom: 0; width: calc((100% - var(--kolom)) / 2); border: 0; background: transparent; cursor: default; padding: 0;
+  position: absolute; top: 0; bottom: 0; width: 0; border: 0; background: transparent; cursor: default; padding: 0;
 }
 .bladzone.links { left: 0; cursor: w-resize; }
 .bladzone.rechts { right: 0; cursor: e-resize; }

@@ -55,6 +55,7 @@ export class Editor extends EventTarget {
     this.kader.addEventListener('scroll', () => { this.kader.scrollLeft = 0; this.kader.scrollTop = 0; });
     this.kader.addEventListener('wheel', (e) => this.wiel(e), { passive: false });
     new ResizeObserver(() => this.herbereken()).observe(this.kader);
+    new ResizeObserver(() => this.plaatsZones()).observe(this.kader.parentElement);
     document.getElementById('zone-vorige').addEventListener('click', () => this.blader(-1));
     document.getElementById('zone-volgende').addEventListener('click', () => this.blader(1));
     document.getElementById('knop-vorige').addEventListener('click', () => this.blader(-1));
@@ -278,7 +279,20 @@ export class Editor extends EventTarget {
     this.verbleek();
   }
 
+  // De bladerzones links en rechts beginnen pas een eind naast de tekst, zodat je bij
+  // het einde van een regel gewoon kunt klikken en bewerken. Gemeten, niet geschat.
+  plaatsZones() {
+    const blad = this.kader.parentElement;
+    const b = blad.getBoundingClientRect(), k = this.kader.getBoundingClientRect();
+    if (!k.width) return;
+    const MARGE = 40;
+    const links = document.getElementById('zone-vorige'), rechts = document.getElementById('zone-volgende');
+    links.style.width = Math.max(0, k.left - b.left - MARGE) + 'px';
+    rechts.style.width = Math.max(0, b.right - k.right - MARGE) + 'px';
+  }
+
   herbereken() {
+    this.plaatsZones();
     if (!this.id) return;
     const p = this.caretPagina();
     this.telPaginas();

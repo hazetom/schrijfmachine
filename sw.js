@@ -2,7 +2,7 @@
 // Bij een nieuwe versie verandert VERSIE (en VERSIE in js/instellingen.js). De nieuwe bestanden
 // worden op de achtergrond opgehaald; de app meldt rechtsonder "Nieuwe versie klaar" en
 // stuurt na jouw klik 'bijwerken', waarna deze versie het overneemt.
-const VERSIE = 'schrijfmachine-7';
+const VERSIE = 'schrijfmachine-8';
 const BESTANDEN = [
   './',
   'index.html',

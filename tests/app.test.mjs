@@ -1383,6 +1383,27 @@ await test('aantekeningen: in de tekst, op het overzicht, spiekbriefje, niet in 
   await ctx.close();
 });
 
+await test('bladerzones beginnen pas naast de tekst, ook met het spiekbriefje open', async () => {
+  for (const vp of [{ width: 1280, height: 720 }, { width: 1536, height: 864 }]) {
+    const ctx = await nieuweContext(vp);
+    const p = await open(ctx, 'zones' + vp.width);
+    await p.keyboard.type(ZIN.repeat(4));
+    for (const spiek of [false, true]) {
+      if (spiek) { await p.click('#knop-notities'); await p.waitForTimeout(200); }
+      const r = await p.evaluate(() => {
+        const k = document.getElementById('tekstkader').getBoundingClientRect();
+        const y = k.top + 40;
+        const wie = (x) => { const e = document.elementFromPoint(x, y); return e ? (e.id || e.className) : ''; };
+        return { rand: wie(k.right - 2), net: wie(k.right + 20), ver: wie(k.right + 80), links: wie(k.left - 20), linksVer: wie(k.left - 80) };
+      });
+      const tekstOfKader = (x) => !/bladzone|zone-/.test(x);
+      assert.ok(tekstOfKader(r.rand) && tekstOfKader(r.net) && tekstOfKader(r.links), JSON.stringify({ vp, spiek, r }));
+      assert.ok(r.ver === 'zone-volgende' && r.linksVer === 'zone-vorige', JSON.stringify({ vp, spiek, r }));
+    }
+    await ctx.close();
+  }
+});
+
 // ---------------------------------------------------------------- offline en controlepagina
 await test('offline: app opent zonder netwerk via de service worker', async () => {
   const ctx = await nieuweContext();
