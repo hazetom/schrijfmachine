@@ -1,3 +1,5 @@
+import { lees } from './instellingen.js';
+
 // Gedeeld gedrag voor alle tekstvelden met opmaak (schrijfscherm en notities):
 // Ctrl+B, Ctrl+I, kopjes, scènescheiding, plakken als platte tekst,
 // en het kleine balkje dat verschijnt als je tekst selecteert.
@@ -213,6 +215,56 @@ export function normaliseer(veld) {
   return veranderd;
 }
 
+// ---------- slimme typografie ----------
+// " wordt “ of ”, ' wordt ‘ of ’, ... wordt …, en 's / 't / 'k / 'n worden ’s / ’t / ’k / ’n.
+function tekstVoorCursor(veld, max = 3) {
+  const sel = document.getSelection();
+  if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
+  const blok = huidigBlok(veld);
+  if (!blok) return '';
+  const r = document.createRange();
+  r.selectNodeContents(blok);
+  try { r.setEnd(sel.focusNode, sel.focusOffset); } catch (e) { return null; }
+  const t = r.toString();
+  return t.slice(-max);
+}
+
+// Vervangt de laatste n tekens vóór de cursor door nieuwe tekst (blijft ongedaan te maken).
+function vervangVoorCursor(n, nieuw) {
+  const sel = document.getSelection();
+  for (let k = 0; k < n; k++) sel.modify('extend', 'backward', 'character');
+  document.execCommand('insertText', false, nieuw);
+}
+
+function typografie(veld, e) {
+  const voor = tekstVoorCursor(veld);
+  if (voor === null) return false;
+  const vorige = voor.slice(-1);
+  const opent = !vorige || /[\s(\[{“‘«\u2014\u2013-]/.test(vorige);
+  if (e.key === '"') {
+    e.preventDefault();
+    document.execCommand('insertText', false, opent ? '“' : '”');
+    return true;
+  }
+  if (e.key === "'") {
+    e.preventDefault();
+    document.execCommand('insertText', false, opent ? '‘' : '’');
+    return true;
+  }
+  if (e.key === '.' && voor.endsWith('..')) {
+    e.preventDefault();
+    vervangVoorCursor(2, '…');
+    return true;
+  }
+  // 's nachts: bij de spatie na ‘s, ‘t, ‘k of ‘n wordt het een apostrof
+  if (e.key === ' ' && /(^|[\s(])‘[stkn]$/i.test(voor)) {
+    e.preventDefault();
+    vervangVoorCursor(2, '’' + voor.slice(-1) + ' ');
+    return true;
+  }
+  return false;
+}
+
 function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -224,6 +276,7 @@ export function maakRijk(veld, { scene = true } = {}) {
   veld.addEventListener('keydown', (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const k = e.key.toLowerCase();
+    if (!ctrl && !e.altKey && !e.isComposing && lees('typografie') && typografie(veld, e)) return;
     if (ctrl && !e.altKey && !e.shiftKey && k === 'b') { e.preventDefault(); voerUit(veld, 'vet'); return; }
     if (ctrl && !e.altKey && !e.shiftKey && k === 'i') { e.preventDefault(); voerUit(veld, 'cursief'); return; }
     if (ctrl && !e.altKey && k === 'u') { e.preventDefault(); return; }

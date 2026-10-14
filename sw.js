@@ -1,7 +1,8 @@
 // Service worker: de app werkt volledig offline.
-// Bij een nieuwe versie verandert VERSIE; de nieuwe bestanden worden op de achtergrond
-// opgehaald en gebruikt vanaf de volgende keer dat je de app opent.
-const VERSIE = 'schrijfmachine-3';
+// Bij een nieuwe versie verandert VERSIE (en VERSIE in js/instellingen.js). De nieuwe bestanden
+// worden op de achtergrond opgehaald; de app meldt rechtsonder "Nieuwe versie klaar" en
+// stuurt na jouw klik 'bijwerken', waarna deze versie het overneemt.
+const VERSIE = 'schrijfmachine-4';
 const BESTANDEN = [
   './',
   'index.html',
@@ -23,6 +24,9 @@ const BESTANDEN = [
   'js/docx.js',
   'js/zip.js',
   'js/test-page.js',
+  'js/instellingen.js',
+  'js/kantlijn.js',
+  'js/zoeken.js',
   'fonts/literata-latin-opsz-normal.woff2',
   'fonts/literata-latin-opsz-italic.woff2',
   'fonts/literata-latin-ext-opsz-normal.woff2',
@@ -36,6 +40,10 @@ const BESTANDEN = [
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSIE).then((c) => c.addAll(BESTANDEN.map((b) => new Request(b, { cache: 'reload' })))));
+});
+
+self.addEventListener('message', (e) => {
+  if (e.data === 'bijwerken') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

@@ -11,6 +11,12 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/literata-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
+<script>
+  try {
+    var i = JSON.parse(localStorage.getItem('schrijfmachine-instellingen') || '{}'), u = new Date().getHours();
+    if (i.avond === 'aan' || (i.avond === 'auto' && (u >= 20 || u < 7))) document.documentElement.dataset.thema = 'avond';
+  } catch (e) {}
+</script>
 <script type="module" src="js/main.js"></script>
 </head>
 <body>
@@ -40,6 +46,8 @@
           <span>Meer</span>
         </button>
         <div class="menu" id="menu" role="menu" hidden>
+          <button role="menuitem" data-actie="zoeken">Zoeken en vervangen <span class="sneltoets">Ctrl+F</span></button>
+          <hr>
           <button role="menuitem" data-actie="exporteer">Exporteer manuscript (.docx)</button>
           <button role="menuitem" data-actie="importeer">Importeer tekst…</button>
           <button role="menuitem" data-actie="versies">Versies terugzetten…</button>
@@ -49,7 +57,11 @@
           <button role="menuitem" data-actie="controle">Controleer opslag</button>
           <hr>
           <button role="menuitem" data-actie="titel">Titel van het boek…</button>
+          <button role="menuitem" data-actie="instellingen">Instellingen…</button>
           <button role="menuitem" data-actie="hulp">Sneltoetsen</button>
+          <hr>
+          <button role="menuitem" data-actie="update" id="menu-update">Zoek naar update</button>
+          <span class="menu-versie" id="menu-versie"></span>
         </div>
       </div>
     </nav>
@@ -60,6 +72,7 @@
       <div class="schrijfvlak">
         <div class="blad" id="blad">
           <button class="bladzone links" id="zone-vorige" tabindex="-1" aria-label="Vorige pagina"></button>
+          <nav class="kantlijn" id="kantlijn" aria-label="Hoofdstukken" hidden></nav>
           <div class="tekstkader" id="tekstkader">
             <div id="tekst" class="tekst rijk" contenteditable="true" spellcheck="true" lang="nl" role="textbox" aria-multiline="true" aria-label="Tekst van het hoofdstuk"></div>
             <div class="waaslaag" id="waaslaag" hidden>
@@ -84,10 +97,16 @@
         <section class="hs-lijst-kolom" aria-label="Hoofdstukkenlijst">
           <div class="hs-slotbalk" id="hs-slotbalk"></div>
           <ol class="hs-lijst" id="hs-lijst"></ol>
-          <button class="knop hs-nieuw" id="hs-nieuw">
-            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Nieuw hoofdstuk</span>
-          </button>
+          <div class="hs-nieuw-rij">
+            <button class="knop hs-nieuw" id="hs-nieuw">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Nieuw hoofdstuk</span>
+            </button>
+            <button class="knop hs-nieuw" id="hs-nieuw-deel">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Nieuw deel</span>
+            </button>
+          </div>
         </section>
         <section class="hs-detail" id="hs-detail" aria-label="Gekozen hoofdstuk"></section>
       </div>
@@ -115,6 +134,7 @@
   <button class="knop" data-opmaak="scene" aria-label="Scènescheiding na deze alinea (Ctrl+Shift+Enter)" title="Scènescheiding (Ctrl+Shift+Enter)" style="font-size:13px;letter-spacing:.06em">SCÈNE</button>
 </div>
 
+<div class="zoekpaneel" id="zoekpaneel" role="search" hidden></div>
 <dialog id="dialoog" class="dialoog"></dialog>
 <input type="file" id="bestandkiezer" accept=".docx,.md,.txt,.markdown" hidden>
 </body>

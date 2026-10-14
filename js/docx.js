@@ -33,6 +33,7 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
 <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/><w:spacing w:before="2400" w:after="480"/></w:pPr><w:rPr><w:sz w:val="56"/><w:szCs w:val="56"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="0" w:after="480"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="200"/><w:outlineLvl w:val="2"/></w:pPr><w:rPr><w:b/><w:bCs/><w:caps/><w:spacing w:val="20"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="360" w:after="200"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:bCs/><w:caps/><w:spacing w:val="20"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
 </w:styles>`;
 
@@ -67,20 +68,30 @@ function core(titel) {
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xml(titel || 'Manuscript')}</dc:title><dc:creator>Schrijfmachine</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${nu}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${nu}</dcterms:modified></cp:coreProperties>`;
 }
 
-// hoofdstukken: [{ titel, md }]
-export async function maakDocx({ titel, hoofdstukken }) {
+// rijen: [{ soort: 'deel', titel } | { soort: 'hoofdstuk', titel, md }]
+// (of oud: hoofdstukken: [{ titel, md }])
+// Zonder delen: hoofdstuk = Kop 1, kopje = Kop 2.
+// Met delen: deel = Kop 1 op een eigen pagina, hoofdstuk = Kop 2, kopje = Kop 3.
+export async function maakDocx({ titel, hoofdstukken, rijen }) {
+  if (!rijen) rijen = (hoofdstukken || []).map((h) => ({ soort: 'hoofdstuk', ...h }));
+  const metDelen = rijen.some((r) => r.soort === 'deel');
   const body = [];
   let eerste = true;
   if (titel && titel.trim()) {
     body.push(paraXml([{ t: titel.trim() }], { stijl: 'Title' }));
     eerste = false;
   }
-  for (const h of hoofdstukken) {
-    body.push(paraXml([{ t: h.titel || 'Zonder titel' }], { stijl: 'Heading1', pagina: !eerste }));
+  for (const r of rijen) {
+    if (r.soort === 'deel') {
+      body.push(paraXml([{ t: r.titel || 'Zonder titel' }], { stijl: 'Heading1', pagina: !eerste }));
+      eerste = false;
+      continue;
+    }
+    body.push(paraXml([{ t: r.titel || 'Zonder titel' }], { stijl: metDelen ? 'Heading2' : 'Heading1', pagina: !eerste }));
     eerste = false;
-    for (const bl of mdToBlocks(h.md)) {
+    for (const bl of mdToBlocks(r.md)) {
       if (bl.type === 'scene') body.push(paraXml([{ t: '*   *   *' }], { midden: true }));
-      else if (bl.type === 'h') body.push(paraXml(bl.runs, { stijl: 'Heading2' }));
+      else if (bl.type === 'h') body.push(paraXml(bl.runs, { stijl: metDelen ? 'Heading3' : 'Heading2' }));
       else body.push(paraXml(bl.runs));
     }
   }
@@ -188,44 +199,58 @@ export async function leesDocx(buffer) {
 
 // ---------- voorstel voor het indelen in hoofdstukken ----------
 
+const DEEL_RE = /^(act|akte|deel|boek)\s*\d/i;
 const HOOFDSTUK_RE = /^(proloog|epiloog|intermezzo|interludium|voorwoord|nawoord|act|akte|deel|hoofdstuk|boek)\b/i;
 const NUMMER_RE = /^\d{1,3}[.)]?(\s|$)/;
 const SCENE_RE = /^(\*\s*){1,5}$|^(#\s*){1,3}$|^⁂$|^(~\s*){1,3}$|^(-\s*){3,}$|^(o\s*){3}$/i;
 
 export function tekstVan(runs) { return runs.map((r) => r.t).join(''); }
 
-// soort: 'hoofdstuk' | 'kop' | 'tekst' | 'scene'
+// soort: 'deel' | 'hoofdstuk' | 'kop' | 'tekst' | 'scene'
 export function stelIndelingVoor(alineas) {
+  // Drie kopniveaus (zoals onze eigen export met delen): 1 = deel, 2 = hoofdstuk, 3 = kopje.
+  const niveaus = new Set(alineas.map((a) => a.niveau).filter((n) => n));
+  const drieLagen = niveaus.has(1) && niveaus.has(2) && niveaus.has(3);
   return alineas.map((a) => {
     const t = cleanText(tekstVan(a.runs)).trim();
     let soort = 'tekst';
     if (SCENE_RE.test(t)) soort = 'scene';
-    else if (a.niveau === 0 || a.niveau === 1) soort = 'hoofdstuk';
+    else if (drieLagen && a.niveau === 1) soort = 'deel';
+    else if (drieLagen && a.niveau === 2) soort = 'hoofdstuk';
+    else if (drieLagen && a.niveau >= 3) soort = 'kop';
+    else if (a.niveau === 0 || a.niveau === 1) soort = DEEL_RE.test(t) ? 'deel' : 'hoofdstuk';
     else if (a.niveau && a.niveau >= 2) soort = 'kop';
+    else if (t.length <= 60 && DEEL_RE.test(t)) soort = 'deel';
     else if (t.length <= 60 && (HOOFDSTUK_RE.test(t) || NUMMER_RE.test(t))) soort = 'hoofdstuk';
     else if (t.length <= 60 && !/[.!?…:;,"”’'»)\]]$/.test(t) && !/^["“‘'«(\[-]/.test(t) && t.split(/\s+/).length <= 9) soort = 'kop';
     return { runs: a.runs, tekst: t, soort };
   });
 }
 
-// Zet de (eventueel aangepaste) indeling om in hoofdstukken: [{ titel, md }]
+// Zet de (eventueel aangepaste) indeling om in rijen:
+// [{ soort: 'deel', titel } | { soort: 'hoofdstuk', titel, md }]
 export function bouwHoofdstukken(rijen, blocksToMd) {
-  const hoofdstukken = [];
+  const uit = [];
   let huidig = null;
   for (const r of rijen) {
     if (r.soort === 'overslaan') continue;
+    if (r.soort === 'deel') {
+      uit.push({ soort: 'deel', titel: r.tekst || 'Zonder titel' });
+      huidig = null;
+      continue;
+    }
     if (r.soort === 'hoofdstuk') {
-      huidig = { titel: r.tekst || 'Zonder titel', blocks: [] };
-      hoofdstukken.push(huidig);
+      huidig = { soort: 'hoofdstuk', titel: r.tekst || 'Zonder titel', blocks: [] };
+      uit.push(huidig);
       continue;
     }
     if (!huidig) {
-      huidig = { titel: 'Zonder titel', blocks: [] };
-      hoofdstukken.push(huidig);
+      huidig = { soort: 'hoofdstuk', titel: 'Zonder titel', blocks: [] };
+      uit.push(huidig);
     }
     if (r.soort === 'scene') huidig.blocks.push({ type: 'scene' });
     else if (r.soort === 'kop') huidig.blocks.push({ type: 'h', runs: r.runs.map((x) => ({ ...x, b: false })) });
     else huidig.blocks.push({ type: 'p', runs: r.runs });
   }
-  return hoofdstukken.map((h) => ({ titel: h.titel, md: blocksToMd(h.blocks) }));
+  return uit.map((x) => (x.soort === 'deel' ? x : { soort: 'hoofdstuk', titel: x.titel, md: blocksToMd(x.blocks) }));
 }

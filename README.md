@@ -53,7 +53,7 @@ Er zijn drie lagen, zodat er niets mis kan gaan:
 
 ```
 Manuscript/
-  schrijfmachine.json          volgorde, titels, verhaallijnen, status, scènedoelen
+  schrijfmachine.json          volgorde, delen, titels, verhaallijnen, status, scènedoelen
   Hoofdstukken/
     proloog-k3f9.md            één bestand per hoofdstuk
     act-1-de-moeder-a81c.md
@@ -68,6 +68,23 @@ Manuscript/
 ```
 
 De Markdown is gewoon leesbaar: `**vet**`, `*cursief*`, `## Kopje` en `* * *` voor een scènescheiding. Een hoofdstukbestand begint met `# Titel`.
+
+## Delen (acts)
+
+In **Hoofdstukken** maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren · De moeder". In de export krijgt elk deel een eigen pagina.
+
+## Tijdens het schrijven
+
+- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg.
+- **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
+- **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
+- **Scènes.** De kopjes in een hoofdstuk staan in het hoofdstukkenscherm onder het scènedoel; een klik brengt je erheen.
+
+## Instellingen (Meer > Instellingen)
+
+- **Avondstand:** uit, aan, of automatisch van 20:00 tot 7:00. Donker warm papier met lichte inkt. Voor een warmere kleur van het hele scherm kun je op de Chromebook ook **Nachtverlichting** aanzetten (klik op de klok rechtsonder).
+- **Volledig scherm:** bij de eerste toets of klik verdwijnen plank en titelbalk. Houd **Esc** even ingedrukt om eruit te gaan; dan laat de app je de rest van die sessie met rust.
+- **Slimme aanhalingstekens:** " wordt “ of ”, ' wordt ‘ of ’, 's wordt ’s en ... wordt ….
 
 ## Exporteren
 
@@ -84,6 +101,8 @@ Elke export krijgt de datum en tijd in de naam, zodat een eerdere export nooit w
 | Ctrl+Shift+Enter, of `***` + Enter | Scènescheiding |
 | PageDown / PageUp | Volgende / vorige pagina |
 | Klik in de lege rand links of rechts | Bladeren |
+| Ctrl+PageDown / Ctrl+PageUp | Volgend / vorig hoofdstuk |
+| Ctrl+F | Zoeken en vervangen |
 | Ctrl+Alt+N | Notities open/dicht |
 | Ctrl+Alt+H | Hoofdstukken |
 | Ctrl+S | Nu opslaan (gebeurt ook vanzelf) |
@@ -110,7 +129,7 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP en SCÈNE.
 
 ## Updates
 
-De app werkt offline via een service worker. Na een update op GitHub krijg je de nieuwe versie vanzelf: de eerste keer dat je de app opent wordt hij op de achtergrond binnengehaald, de keer daarna gebruik je hem. Je tekst merkt daar niets van.
+Opnieuw installeren is nooit nodig. De app kijkt bij het opstarten en daarna elk uur of er een nieuwe versie is en haalt die op de achtergrond op. Staat er rechtsonder **Nieuwe versie klaar · klik om bij te werken**, klik dan: alles wordt eerst opgeslagen en de app start even opnieuw. Zelf kijken kan via **Meer > Zoek naar update**; daar staat ook welke versie je hebt.
 
 ---
 
@@ -126,10 +145,13 @@ Gewone HTML, CSS en JavaScript-modules, zonder build-stap. Alles wordt rechtstre
 | `js/store.js` | het project in het geheugen en in IndexedDB |
 | `js/folder.js` | de map: koppelen, veilig schrijven, back-ups |
 | `js/snapshots.js` | automatische versies |
+| `js/kantlijn.js` | hoofdstukken in de linkerkantlijn |
+| `js/zoeken.js` | zoeken en vervangen |
+| `js/instellingen.js` | avondstand, volledig scherm, typografie, versienummer |
 | `js/docx.js`, `js/zip.js` | export en import van .docx |
 | `test.html`, `js/test-page.js` | controlepagina voor de opslag |
 
-**Na elke wijziging** het versienummer `VERSIE` bovenin `sw.js` ophogen, anders blijft de oude versie in de cache.
+**Na elke wijziging** het versienummer ophogen op twee plekken: `VERSIE` bovenin `sw.js` en `VERSIE` in `js/instellingen.js`. Anders blijft de oude versie in de cache.
 
 **Tests** (headless Chromium via Playwright):
 

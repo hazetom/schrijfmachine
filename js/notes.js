@@ -113,7 +113,7 @@ export class Notities {
     }
     if (this.tab !== 'ideeen') {
       const kleuren = el('div', { class: 'kleuren', role: 'group', 'aria-label': 'Kleur' });
-      const geen = el('button', { class: 'kleur-keuze', 'aria-pressed': !it.kleur ? 'true' : 'false', title: 'Geen kleur', 'aria-label': 'Geen kleur' }, el('span', { style: { outline: '1px solid #C9C4B8', outlineOffset: '-1px' } }));
+      const geen = el('button', { class: 'kleur-keuze', 'aria-pressed': !it.kleur ? 'true' : 'false', title: 'Geen kleur', 'aria-label': 'Geen kleur' }, el('span', { style: { outline: '1px solid var(--lijn)', outlineOffset: '-1px' } }));
       geen.addEventListener('click', () => { store.wijzigNotitie(this.tab, it.id, { kleur: null }); this.render(); this.opWijziging(); });
       kleuren.append(geen);
       for (const k of KLEUREN) {

@@ -4,6 +4,7 @@
 
 import { mdToHtml, domToMd } from './markdown.js';
 import { store } from './store.js';
+import { db } from './db.js';
 import { maakRijk, blokVan } from './richtext.js';
 
 const BEWAAR_PAUZE = 250;
@@ -18,7 +19,9 @@ export class Editor extends EventTarget {
     this.aantal = 1;
     this.id = null;
     this.bewaarTimer = null;
-    this.onthoudPagina = new Map();
+    this.plekken = {};     // per hoofdstuk: waar stond de cursor { blok, teken }
+    this.plekTimer = null;
+    db.get('meta', 'cursorplekken').then((p) => { if (p) this.plekken = { ...p, ...this.plekken }; }).catch(() => {});
     this.huidigBlokIndex = -1;
     this.wielTotaal = 0;
     this.wielTijd = 0;
@@ -33,10 +36,16 @@ export class Editor extends EventTarget {
     });
     document.addEventListener('selectionchange', () => {
       const sel = document.getSelection();
-      if (sel && sel.rangeCount && this.el.contains(sel.focusNode)) this.naOpmaak();
+      if (sel && sel.rangeCount && this.el.contains(sel.focusNode)) { this.naOpmaak(); this.planPlek(); }
     });
     this.el.addEventListener('keydown', (e) => {
-      if (e.key === 'PageDown') { e.preventDefault(); this.blader(1); }
+      this.dispatchEvent(new CustomEvent('typen'));
+      this.wisMarkering();
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'PageDown' || e.key === 'PageUp')) {
+        e.preventDefault();
+        this.dispatchEvent(new CustomEvent('ander-hoofdstuk', { detail: e.key === 'PageDown' ? 1 : -1 }));
+      }
+      else if (e.key === 'PageDown') { e.preventDefault(); this.blader(1); }
       else if (e.key === 'PageUp') { e.preventDefault(); this.blader(-1); }
       // na de standaardactie (cursor verplaatst) maar vóór het tekenen: pagina bijstellen
       else requestAnimationFrame(() => this.naOpmaak());
@@ -54,9 +63,11 @@ export class Editor extends EventTarget {
   }
 
   // ---------- laden en bewaren ----------
-  laad(id, { naarEinde = true } = {}) {
+  // opties: { naarEinde } | { blok } (begin van een blok) | { treffer: { blok, start, lengte } }
+  // Zonder opties komt de cursor terug waar hij de vorige keer stond, anders aan het einde.
+  laad(id, opties = {}) {
     this.bewaar();
-    if (this.id) this.onthoudPagina.set(this.id, this.pagina);
+    this.onthoudPlek();
     const h = store.hoofdstuk(id);
     if (!h) return;
     this.id = id;
@@ -68,28 +79,100 @@ export class Editor extends EventTarget {
     this.pasVergrendelingToe();
     requestAnimationFrame(() => {
       this.telPaginas();
-      const onthouden = this.onthoudPagina.get(id);
-      if (onthouden != null && !naarEinde) {
-        this.zetPagina(onthouden);
-        this.caretBovenaan();
-      } else {
-        this.caretAanEinde();
-      }
+      const plek = this.plekken[id];
+      if (opties.treffer) this.selecteer(opties.treffer.blok, opties.treffer.start, opties.treffer.lengte, { focus: opties.treffer.focus !== false });
+      else if (opties.blok != null) this.selecteer(opties.blok, 0, 0);
+      else if (!opties.naarEinde && plek) this.selecteer(plek.blok, plek.teken, 0);
+      else this.caretAanEinde();
       this.dispatchEvent(new CustomEvent('geladen'));
     });
+  }
+
+  // Cursor (of selectie) op een plek: blok-nummer en tekenpositie binnen dat blok.
+  // focus: false = alleen in beeld brengen en markeren (bij zoeken blijft het zoekveld actief)
+  selecteer(blokIndex, start, lengte = 0, { focus = true } = {}) {
+    const blokken = this.el.children;
+    if (!blokken.length) return this.caretAanEinde();
+    const blok = blokken[Math.max(0, Math.min(blokIndex, blokken.length - 1))];
+    const zoek = (doel) => {
+      const w = document.createTreeWalker(blok, NodeFilter.SHOW_TEXT);
+      let n, gezien = 0, laatste = null;
+      while ((n = w.nextNode())) {
+        if (gezien + n.length >= doel) return [n, doel - gezien];
+        gezien += n.length;
+        laatste = n;
+      }
+      return laatste ? [laatste, laatste.length] : [blok, 0];
+    };
+    const r = document.createRange();
+    const [an, ao] = zoek(start);
+    r.setStart(an, ao);
+    if (lengte > 0) { const [fn, fo] = zoek(start + lengte); r.setEnd(fn, fo); } else r.collapse(true);
+    // zoektreffer zichtbaar houden, ook als de focus in het zoekveld blijft
+    if (lengte > 0 && window.CSS && CSS.highlights && window.Highlight) CSS.highlights.set('zoektreffer', new Highlight(r.cloneRange()));
+    this.telPaginas();
+    if (focus) {
+      if (this.el.getAttribute('contenteditable') === 'true') this.el.focus({ preventScroll: true });
+      const sel = document.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      const p = this.caretPagina();
+      this.zetPagina(p !== null ? p : 0);
+      this.huidigBlokIndex = -1;
+      this.verbleek();
+    } else {
+      const rects = r.getClientRects();
+      const rect = rects.length ? rects[0] : (blok.getClientRects()[0] || null);
+      const er = this.el.getBoundingClientRect();
+      this.zetPagina(rect ? this.paginaVanX(rect.left - er.left) : 0);
+    }
+  }
+
+  wisMarkering() {
+    if (window.CSS && CSS.highlights) CSS.highlights.delete('zoektreffer');
+  }
+
+  // Waar staat de cursor nu? { blok, teken }
+  plekNu() {
+    const sel = document.getSelection();
+    if (!sel || !sel.rangeCount || !this.el.contains(sel.focusNode)) return null;
+    let n = sel.focusNode;
+    if (n === this.el) n = this.el.childNodes[Math.min(sel.focusOffset, this.el.childNodes.length - 1)];
+    const blok = blokVan(this.el, n);
+    if (!blok) return null;
+    const r = document.createRange();
+    r.selectNodeContents(blok);
+    try { r.setEnd(sel.focusNode, sel.focusOffset); } catch (e) { return null; }
+    return { blok: [...this.el.children].indexOf(blok), teken: r.toString().length };
+  }
+
+  onthoudPlek() {
+    if (!this.id) return;
+    const p = this.plekNu();
+    if (p) this.plekken[this.id] = p;
+  }
+
+  planPlek() {
+    clearTimeout(this.plekTimer);
+    this.plekTimer = setTimeout(() => {
+      this.onthoudPlek();
+      db.put('meta', this.plekken, 'cursorplekken').catch(() => {});
+    }, 1000);
   }
 
   // Na het vervangen van het hele project: wat nu in beeld staat niet meer bewaren.
   verwerp() {
     clearTimeout(this.bewaarTimer);
+    this.onthoudPlek();
     this.id = null;
   }
 
   herlaad() {
     if (!this.id) return;
+    this.onthoudPlek();
     const id = this.id;
     this.id = null;
-    this.laad(id, { naarEinde: false });
+    this.laad(id);
   }
 
   planBewaren() {

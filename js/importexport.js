@@ -20,7 +20,8 @@ function veiligeNaam(s) {
 export async function exporteer() {
   await store.bewaarLokaal();
   const titel = store.meta.titel;
-  const blob = await maakDocx({ titel, hoofdstukken: store.lijst().map((h) => ({ titel: h.titel, md: h.md })) });
+  const rijen = store.rijen().map((r) => (r.soort === 'deel' ? { soort: 'deel', titel: r.deel.titel } : { soort: 'hoofdstuk', titel: r.h.titel, md: r.h.md }));
+  const blob = await maakDocx({ titel, rijen });
   const naam = (veiligeNaam(titel) || 'Manuscript') + ' ' + stempel() + '.docx';
   let inMap = false;
   try { inMap = await schrijfInMap(naam, blob); } catch (e) { inMap = false; }
@@ -91,11 +92,13 @@ export async function importeerBestand(bestand) {
   const rijen = stelIndelingVoor(alineas);
   const samenvatting = el('p', { class: 'klein' });
   const werkSamenvatting = () => {
-    const h = bouwHoofdstukken(rijen, blocksToMd);
-    samenvatting.textContent = `Dit worden ${h.length} ${h.length === 1 ? 'hoofdstuk' : 'hoofdstukken'}: ` + h.map((x) => x.titel).slice(0, 8).join(', ') + (h.length > 8 ? ', …' : '') + '.';
+    const alles = bouwHoofdstukken(rijen, blocksToMd);
+    const h = alles.filter((x) => x.soort === 'hoofdstuk');
+    const d = alles.filter((x) => x.soort === 'deel');
+    samenvatting.textContent = (d.length ? `Dit worden ${d.length} ${d.length === 1 ? 'deel' : 'delen'} en ` : 'Dit worden ') + `${h.length} ${h.length === 1 ? 'hoofdstuk' : 'hoofdstukken'}: ` + h.map((x) => x.titel).slice(0, 8).join(', ') + (h.length > 8 ? ', …' : '') + '.';
   };
   const lijst = el('div', { class: 'lijst' });
-  const opties = [['hoofdstuk', 'Hoofdstuk'], ['kop', 'Kopje'], ['tekst', 'Tekst'], ['scene', 'Scène'], ['overslaan', 'Overslaan']];
+  const opties = [['deel', 'Deel (act)'], ['hoofdstuk', 'Hoofdstuk'], ['kop', 'Kopje'], ['tekst', 'Tekst'], ['scene', 'Scène'], ['overslaan', 'Overslaan']];
   rijen.forEach((r) => {
     const sel = el('select', { 'aria-label': 'Soort' });
     for (const [v, t] of opties) sel.append(el('option', { value: v, text: t }));
@@ -110,7 +113,7 @@ export async function importeerBestand(bestand) {
     titel: 'Tekst importeren',
     breed: true,
     inhoud: [
-      el('p', { text: 'Ik heb een voorstel gemaakt voor de indeling. Controleer vooral welke regels een nieuw hoofdstuk beginnen en welke een kopje binnen een hoofdstuk zijn. Vet en cursief blijven behouden.' }),
+      el('p', { text: 'Ik heb een voorstel gemaakt voor de indeling. Controleer vooral welke regels een deel (act) of een nieuw hoofdstuk beginnen en welke een kopje binnen een hoofdstuk zijn. Vet en cursief blijven behouden.' }),
       lijst,
       samenvatting,
       el('p', { class: 'klein', text: leeg ? 'De hoofdstukken komen in je (nog lege) manuscript.' : 'De hoofdstukken komen achter je bestaande hoofdstukken. Er wordt eerst een versie gemaakt, zodat je terug kunt.' }),
@@ -118,15 +121,21 @@ export async function importeerBestand(bestand) {
     knoppen: [{ tekst: 'Annuleer', waarde: false }, { tekst: 'Importeer', waarde: true, hoofd: true }],
   });
   if (!ok) return null;
-  const hoofdstukken = bouwHoofdstukken(rijen, blocksToMd);
+  const alles = bouwHoofdstukken(rijen, blocksToMd);
+  const hoofdstukken = alles.filter((x) => x.soort === 'hoofdstuk');
   await store.bewaarLokaal();
   await maakSnapshot('vlak voor importeren van ' + bestand.name);
   const oudeIds = [...store.meta.volgorde];
   let eersteId = null;
-  for (const h of hoofdstukken) {
-    const id = store.nieuwHoofdstuk(null, h.titel, { md: h.md, status: 'Concept' });
+  let wachtendeDelen = [];
+  for (const x of alles) {
+    if (x.soort === 'deel') { wachtendeDelen.push(store.nieuwDeel(null, x.titel)); continue; }
+    const id = store.nieuwHoofdstuk(null, x.titel, { md: x.md, status: 'Concept' });
+    for (const d of wachtendeDelen) store.wijzigDeel(d.id, { voor: id });
+    wachtendeDelen = [];
     if (!eersteId) eersteId = id;
   }
+  if (!eersteId) return null;
   // het lege beginhoofdstuk is niet meer nodig
   if (leeg) for (const id of oudeIds) store.verwijderHoofdstuk(id);
   store.zetHuidig(eersteId);

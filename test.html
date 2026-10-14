@@ -7,6 +7,12 @@
 <meta name="theme-color" content="#E6E2D8">
 <link rel="icon" href="icons/favicon-48.png" sizes="48x48">
 <link rel="stylesheet" href="css/app.css">
+<script>
+  try {
+    var i = JSON.parse(localStorage.getItem('schrijfmachine-instellingen') || '{}'), u = new Date().getHours();
+    if (i.avond === 'aan' || (i.avond === 'auto' && (u >= 20 || u < 7))) document.documentElement.dataset.thema = 'avond';
+  } catch (e) {}
+</script>
 <style>
   body { overflow: auto; }
   .controle { max-width: 760px; margin: 0 auto; padding: 40px 32px 60px; font-size: 17px; line-height: 1.6; }

@@ -3,6 +3,7 @@
 
 import { store, STATUSSEN } from './store.js';
 import { el, dialoog, woorden } from './ui.js';
+import { mdToBlocks } from './markdown.js';
 
 export class Hoofdstukken {
   constructor({ openSchrijven, openNotities }) {
@@ -17,8 +18,13 @@ export class Hoofdstukken {
       const id = store.nieuwHoofdstuk(null);
       this.gekozen = id;
       this.render();
-      const t = this.detailEl.querySelector('.titelveld');
-      if (t) { t.focus(); t.select(); }
+      this.focusTitel();
+    });
+    document.getElementById('hs-nieuw-deel').addEventListener('click', () => {
+      const d = store.nieuwDeel(null, 'Nieuw deel');
+      this.gekozen = d.id;
+      this.render();
+      this.focusTitel();
     });
     this.lijstEl.addEventListener('keydown', (e) => {
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
@@ -26,10 +32,10 @@ export class Hoofdstukken {
         this.verschuif(this.gekozen, e.key === 'ArrowUp' ? -1 : 1, true);
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
-        const v = store.meta.volgorde;
-        const k = v.indexOf(this.gekozen) + (e.key === 'ArrowUp' ? -1 : 1);
-        if (k >= 0 && k < v.length) { this.gekozen = v[k]; this.render(); this.focusRij(); }
-      } else if (e.key === 'Enter') {
+        const ids = store.rijen().map((r) => (r.soort === 'deel' ? r.deel.id : r.h.id));
+        const k = ids.indexOf(this.gekozen) + (e.key === 'ArrowUp' ? -1 : 1);
+        if (k >= 0 && k < ids.length) { this.gekozen = ids[k]; this.render(); this.focusRij(); }
+      } else if (e.key === 'Enter' && store.hoofdstuk(this.gekozen)) {
         e.preventDefault();
         this.openSchrijven(this.gekozen);
       }
@@ -48,8 +54,13 @@ export class Hoofdstukken {
     if (rij) { rij.focus(); rij.scrollIntoView({ block: 'nearest' }); }
   }
 
+  focusTitel() {
+    const t = this.detailEl.querySelector('.titelveld');
+    if (t) { t.focus(); t.select(); }
+  }
+
   render() {
-    if (!store.hoofdstuk(this.gekozen)) this.gekozen = store.meta.volgorde[0];
+    if (!store.hoofdstuk(this.gekozen) && !store.deel(this.gekozen)) this.gekozen = store.meta.volgorde[0];
     this.renderSlot();
     this.renderLijst();
     this.renderDetail();
@@ -108,51 +119,103 @@ export class Hoofdstukken {
   renderLijst() {
     const ol = this.lijstEl;
     ol.innerHTML = '';
-    store.lijst().forEach((h, k) => {
+    let nr = 0;
+    for (const r of store.rijen()) {
+      if (r.soort === 'deel') {
+        const d = r.deel;
+        const rij = el('li', {
+          class: 'hs-rij hs-deel',
+          'aria-current': d.id === this.gekozen ? 'true' : 'false',
+          tabindex: d.id === this.gekozen ? '0' : '-1',
+          draggable: 'true',
+          'data-id': d.id,
+        }, el('span', { class: 'hs-deel-titel', text: d.titel || 'Zonder titel' }));
+        this.koppelRij(rij, d.id);
+        ol.appendChild(rij);
+        continue;
+      }
+      const h = r.h;
+      nr++;
       const lijn = h.lijn ? store.verhaallijn(h.lijn) : null;
+      const kleur = lijn && lijn.kleur;
+      const gekozen = h.id === this.gekozen;
       const rij = el('li', {
         class: 'hs-rij' + (store.isVergrendeld(h.id) ? ' slot' : ''),
-        'aria-current': h.id === this.gekozen ? 'true' : 'false',
-        tabindex: h.id === this.gekozen ? '0' : '-1',
+        'aria-current': gekozen ? 'true' : 'false',
+        tabindex: gekozen ? '0' : '-1',
         draggable: 'true',
         'data-id': h.id,
+        style: gekozen && kleur ? { boxShadow: 'inset 3px 0 0 ' + kleur } : null,
       },
-      el('span', { class: 'hs-nr', text: String(k + 1) }),
+      el('span', { class: 'hs-nr', text: String(nr) }),
       el('span', { class: 'hs-titel', text: h.titel || 'Zonder titel' }),
       el('span', { class: 'hs-lijn' },
-        lijn ? el('span', { class: 'vlak', style: { backgroundColor: lijn.kleur || 'transparent' }, 'aria-hidden': 'true' }) : null,
+        lijn ? el('span', { class: 'vlak', style: { backgroundColor: kleur || 'transparent' }, 'aria-hidden': 'true' }) : null,
         lijn ? (lijn.naam || 'Verhaallijn') : ''),
       el('span', { class: 'hs-meta', text: (h.status || '') + ' · ' + (h.woorden || 0).toLocaleString('nl-NL') }),
       );
-      rij.addEventListener('click', () => { this.gekozen = h.id; this.render(); this.focusRij(); });
       rij.addEventListener('dblclick', () => this.openSchrijven(h.id));
-      rij.addEventListener('dragstart', (e) => { this.sleepId = h.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', h.id); });
-      rij.addEventListener('dragover', (e) => {
-        if (!this.sleepId || this.sleepId === h.id) return;
-        e.preventDefault();
-        const r = rij.getBoundingClientRect();
-        const boven = e.clientY < r.top + r.height / 2;
-        rij.classList.toggle('sleep-boven', boven);
-        rij.classList.toggle('sleep-onder', !boven);
-      });
-      rij.addEventListener('dragleave', () => rij.classList.remove('sleep-boven', 'sleep-onder'));
-      rij.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const boven = rij.classList.contains('sleep-boven');
-        rij.classList.remove('sleep-boven', 'sleep-onder');
-        const v = store.meta.volgorde;
-        const sleep = this.sleepId;
-        this.sleepId = null;
-        if (!sleep || sleep === h.id) return;
-        let doel = v.indexOf(h.id) + (boven ? 0 : 1);
-        if (v.indexOf(sleep) < doel) doel--;
-        store.verplaatsHoofdstuk(sleep, doel);
-        this.gekozen = sleep;
-        this.render();
-      });
-      rij.addEventListener('dragend', () => { this.sleepId = null; });
+      this.koppelRij(rij, h.id);
       ol.appendChild(rij);
+    }
+  }
+
+  // Klikken en slepen, voor hoofdstukken en delen.
+  koppelRij(rij, id) {
+    const isDeel = !!store.deel(id);
+    rij.addEventListener('click', () => { this.gekozen = id; this.render(); this.focusRij(); });
+    rij.addEventListener('dragstart', (e) => { this.sleepId = id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); });
+    rij.addEventListener('dragover', (e) => {
+      if (!this.sleepId || this.sleepId === id) return;
+      e.preventDefault();
+      const r = rij.getBoundingClientRect();
+      const boven = isDeel && store.hoofdstuk(this.sleepId) ? false : e.clientY < r.top + r.height / 2;
+      rij.classList.toggle('sleep-boven', boven);
+      rij.classList.toggle('sleep-onder', !boven);
     });
+    rij.addEventListener('dragleave', () => rij.classList.remove('sleep-boven', 'sleep-onder'));
+    rij.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const boven = rij.classList.contains('sleep-boven');
+      rij.classList.remove('sleep-boven', 'sleep-onder');
+      const sleep = this.sleepId;
+      this.sleepId = null;
+      if (!sleep || sleep === id) return;
+      this.verplaatsNaar(sleep, id, boven);
+      this.gekozen = sleep;
+      this.render();
+    });
+    rij.addEventListener('dragend', () => { this.sleepId = null; });
+  }
+
+  verplaatsNaar(sleep, doelId, boven) {
+    const v = store.meta.volgorde;
+    const doelDeel = store.deel(doelId);
+    if (store.hoofdstuk(sleep)) {
+      if (doelDeel) { store.zetAanBeginVanDeel(sleep, doelDeel.id); return; }
+      // boven een hoofdstuk dat een deel opent: eerste hoofdstuk van dat deel worden
+      const delenErvoor = store.delen().filter((d) => d.voor === doelId);
+      if (boven && delenErvoor.length) { store.zetAanBeginVanDeel(sleep, delenErvoor[delenErvoor.length - 1].id); return; }
+      let doel = v.indexOf(doelId) + (boven ? 0 : 1);
+      if (v.indexOf(sleep) < doel) doel--;
+      store.verplaatsHoofdstuk(sleep, doel);
+      return;
+    }
+    // een deel verslepen
+    const d = store.deel(sleep);
+    if (!d) return;
+    if (doelDeel) {
+      const lijst = store.delen().filter((x) => x.id !== d.id);
+      const k = lijst.indexOf(doelDeel);
+      lijst.splice(boven ? k : k + 1, 0, d);
+      store.project.meta.delen = lijst;
+      store.wijzigDeel(d.id, { voor: doelDeel.voor });
+      return;
+    }
+    const voor = boven ? doelId : (v[v.indexOf(doelId) + 1] || null);
+    // achteraan in de lijst van delen zodat het direct boven het hoofdstuk komt
+    store.project.meta.delen = store.delen().filter((x) => x.id !== d.id).concat([d]);
+    store.wijzigDeel(d.id, { voor });
   }
 
   verschuif(id, delta, focus = false) {
@@ -162,9 +225,62 @@ export class Hoofdstukken {
     if (focus) this.focusRij();
   }
 
+  renderDeel(dl) {
+    const d = this.detailEl;
+    const titel = el('input', { class: 'titelveld', type: 'text', value: dl.titel, 'aria-label': 'Naam van het deel', placeholder: 'Bijvoorbeeld: Act 1 · De verhoren' });
+    titel.addEventListener('input', () => {
+      store.wijzigDeel(dl.id, { titel: titel.value });
+      const r = this.lijstEl.querySelector(`[data-id="${dl.id}"] .hs-deel-titel`);
+      if (r) r.textContent = titel.value || 'Zonder titel';
+    });
+    // hoofdstukken in dit deel
+    const inDeel = [];
+    let binnen = false;
+    for (const r of store.rijen()) {
+      if (r.soort === 'deel') { binnen = r.deel.id === dl.id; continue; }
+      if (binnen) inDeel.push(r.h);
+    }
+    const totaal = inDeel.reduce((n, h) => n + (h.woorden || 0), 0);
+    const lijst = el('div', { class: 'hs-scenes' });
+    for (const h of inDeel) lijst.append(el('button', { class: 'knop hs-scene', text: h.titel || 'Zonder titel', onclick: () => { this.gekozen = h.id; this.render(); } }));
+    d.append(
+      el('span', { class: 'label', text: 'Deel' }),
+      titel,
+      el('div', { class: 'hs-gegevens' }, el('span', { text: inDeel.length + (inDeel.length === 1 ? ' hoofdstuk' : ' hoofdstukken') + ' · ' + woorden(totaal) })),
+      inDeel.length ? el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Hoofdstukken in dit deel' }), lijst) : el('p', { class: 'leeg-hint', text: 'Nog geen hoofdstukken. Sleep een hoofdstuk op dit deel, of maak er hieronder een.' }),
+      el('div', { class: 'hs-klein' },
+        el('button', { class: 'knop', text: 'Nieuw hoofdstuk in dit deel', onclick: () => {
+          const laatste = inDeel[inDeel.length - 1];
+          let id;
+          if (laatste) id = store.nieuwHoofdstuk(laatste.id);
+          else {
+            id = store.nieuwHoofdstuk(null);
+            store.zetAanBeginVanDeel(id, dl.id);
+          }
+          this.gekozen = id;
+          this.render();
+          this.focusTitel();
+        } }),
+        el('button', { class: 'knop', text: 'Verwijder dit deel', onclick: async () => {
+          const ok = await dialoog({
+            titel: 'Deel verwijderen?',
+            inhoud: [`Het kopje "${dl.titel || 'Zonder titel'}" verdwijnt. De hoofdstukken zelf blijven gewoon staan.`],
+            knoppen: [{ tekst: 'Annuleer', waarde: false }, { tekst: 'Verwijder', waarde: true, hoofd: true }],
+          });
+          if (!ok) return;
+          store.verwijderDeel(dl.id);
+          this.gekozen = inDeel[0] ? inDeel[0].id : store.meta.huidig;
+          this.render();
+        } }),
+      ),
+    );
+  }
+
   renderDetail() {
     const d = this.detailEl;
     d.innerHTML = '';
+    const dl = store.deel(this.gekozen);
+    if (dl) { this.renderDeel(dl); return; }
     const h = store.hoofdstuk(this.gekozen);
     if (!h) return;
     const nr = store.nummer(h.id);
@@ -212,20 +328,28 @@ export class Hoofdstukken {
     doel.addEventListener('input', () => { store.wijzigHoofdstuk(h.id, { doel: doel.value }); groei(); });
 
     const slot = store.isVergrendeld(h.id);
-    d.append(
-      el('span', { class: 'label', text: 'Hoofdstuk ' + nr + (slot ? ' · vergrendeld' : '') }),
+    const deel = store.deelVan(h.id);
+    // kopjes in het hoofdstuk = scènes; klik springt erheen
+    const kopjes = [];
+    mdToBlocks(h.md).forEach((b, k) => { if (b.type === 'h') kopjes.push({ k, t: b.runs.map((r) => r.t).join('') }); });
+    const scenes = kopjes.length ? el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Scènes' }),
+      el('div', { class: 'hs-scenes' }, ...kopjes.map((x) => el('button', { class: 'knop hs-scene', text: x.t, title: 'Ga naar deze scène', onclick: () => this.openSchrijven(h.id, { blok: x.k }) })))) : null;
+    d.append(...[
+      el('span', { class: 'label', text: (deel ? (deel.titel || 'Deel') + ' · ' : '') + 'Hoofdstuk ' + nr + (slot ? ' · vergrendeld' : '') }),
       titel,
       el('div', { class: 'hs-gegevens' },
         el('span', { class: 'met-vlak' }, vlak, lijnKeuze),
         el('span', { text: woorden(h.woorden) }),
         status),
       el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Scènedoel' }), doel),
+      scenes,
       el('div', { class: 'hs-knoppen' },
         el('button', { class: 'knop omlijnd', text: 'Verder schrijven', onclick: () => this.openSchrijven(h.id) })),
       el('div', { class: 'hs-klein' },
         el('button', { class: 'knop', text: 'Omhoog', title: 'Alt+pijl omhoog', disabled: nr === 1, onclick: () => this.verschuif(h.id, -1) }),
         el('button', { class: 'knop', text: 'Omlaag', title: 'Alt+pijl omlaag', disabled: nr === store.meta.volgorde.length, onclick: () => this.verschuif(h.id, 1) }),
-        el('button', { class: 'knop', text: 'Nieuw hoofdstuk hierna', onclick: () => { this.gekozen = store.nieuwHoofdstuk(h.id); this.render(); const t = this.detailEl.querySelector('.titelveld'); t.focus(); t.select(); } }),
+        el('button', { class: 'knop', text: 'Nieuw hoofdstuk hierna', onclick: () => { this.gekozen = store.nieuwHoofdstuk(h.id); this.render(); this.focusTitel(); } }),
+        el('button', { class: 'knop', text: 'Nieuw deel vanaf hier', title: 'Bijvoorbeeld een act die met dit hoofdstuk begint', onclick: () => { const nd = store.nieuwDeel(h.id, 'Nieuw deel'); this.gekozen = nd.id; this.render(); this.focusTitel(); } }),
         el('button', { class: 'knop', text: slot ? 'Ontgrendel dit hoofdstuk' : 'Vergrendel dit hoofdstuk', onclick: () => {
           const ids = store.meta.vergrendeld.filter((x) => x !== h.id);
           if (!slot) ids.push(h.id);
@@ -235,7 +359,7 @@ export class Hoofdstukken {
         el('button', { class: 'knop', text: 'Verhaallijnen', onclick: () => this.openNotities('verhaallijnen') }),
         el('button', { class: 'knop', text: 'Verwijder', disabled: store.meta.volgorde.length <= 1, onclick: () => this.verwijder(h) }),
       ),
-    );
+    ].filter(Boolean));
     requestAnimationFrame(groei);
   }
 

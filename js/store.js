@@ -44,6 +44,7 @@ function leegProject() {
       vergrendeld: [],
       vergrendelPagina: null,
       huidig: id,
+      delen: [],
       aangemaakt: Date.now(),
     },
     hoofdstukken: { [id]: maakHoofdstuk(id, 'Hoofdstuk 1') },
@@ -102,6 +103,7 @@ class Store extends EventTarget {
     }
     if (!hoofdstukken[meta.huidig]) meta.huidig = meta.volgorde[0];
     meta.vergrendeld = (meta.vergrendeld || []).filter((id) => hoofdstukken[id]);
+    meta.delen = (meta.delen || []).map((d) => ({ ...d, voor: hoofdstukken[d.voor] ? d.voor : null }));
     for (const t of TABS) if (!notities[t.key]) notities[t.key] = [];
     this.project = { meta, hoofdstukken, notities };
     return { nieuw: false };
@@ -126,6 +128,55 @@ class Store extends EventTarget {
   verhaallijn(id) { return this.project.notities.verhaallijnen.find((v) => v.id === id) || null; }
   totaalWoorden() { return this.lijst().reduce((s, h) => s + (h.woorden || 0), 0); }
   isVergrendeld(id) { return this.project.meta.vergrendeld.includes(id); }
+
+  // Delen (acts): een deel staat vóór een hoofdstuk ("voor"), of aan het eind (voor = null).
+  delen() { return this.project.meta.delen || (this.project.meta.delen = []); }
+  deel(id) { return this.delen().find((d) => d.id === id) || null; }
+  // Alles in volgorde: [{ soort: 'deel', deel } | { soort: 'hoofdstuk', h }]
+  rijen() {
+    const uit = [];
+    const delen = this.delen();
+    for (const h of this.lijst()) {
+      for (const d of delen) if (d.voor === h.id) uit.push({ soort: 'deel', deel: d });
+      uit.push({ soort: 'hoofdstuk', h });
+    }
+    for (const d of delen) if (!d.voor || !this.hoofdstuk(d.voor)) uit.push({ soort: 'deel', deel: d });
+    return uit;
+  }
+  // In welk deel valt dit hoofdstuk?
+  deelVan(id) {
+    let huidig = null;
+    for (const r of this.rijen()) {
+      if (r.soort === 'deel') huidig = r.deel;
+      else if (r.h.id === id) return huidig;
+    }
+    return null;
+  }
+  // Als een hoofdstuk weggaat, schuift een deel dat ervoor stond door naar het volgende hoofdstuk.
+  _delenLos(id) {
+    const v = this.project.meta.volgorde;
+    const volgende = v[v.indexOf(id) + 1] || null;
+    for (const d of this.delen()) if (d.voor === id) d.voor = volgende;
+  }
+  nieuwDeel(voorId = null, titel = 'Nieuw deel') {
+    const d = { id: 'd' + nieuwId(), titel, voor: voorId };
+    this.delen().push(d);
+    this._meta();
+    this._gewijzigd();
+    return d;
+  }
+  wijzigDeel(id, velden) {
+    const d = this.deel(id);
+    if (!d) return;
+    Object.assign(d, velden);
+    this._meta();
+    this._gewijzigd();
+  }
+  verwijderDeel(id) {
+    this.project.meta.delen = this.delen().filter((d) => d.id !== id);
+    this._meta();
+    this._gewijzigd();
+  }
 
   // ---------- wijzigen ----------
   _gewijzigd() {
@@ -188,6 +239,7 @@ class Store extends EventTarget {
     const v = this.project.meta.volgorde;
     if (v.length <= 1) return false;
     const h = this.hoofdstuk(id);
+    this._delenLos(id);
     v.splice(v.indexOf(id), 1);
     delete this.project.hoofdstukken[id];
     this.project.meta.vergrendeld = this.project.meta.vergrendeld.filter((x) => x !== id);
@@ -207,8 +259,24 @@ class Store extends EventTarget {
     const van = v.indexOf(id);
     naarIndex = Math.max(0, Math.min(v.length - 1, naarIndex));
     if (van < 0 || van === naarIndex) return;
+    this._delenLos(id);
     v.splice(van, 1);
     v.splice(naarIndex, 0, id);
+    this._meta();
+    this._gewijzigd();
+  }
+
+  // Hoofdstuk als eerste in een deel zetten (slepen op de kop van een deel).
+  zetAanBeginVanDeel(id, deelId) {
+    const d = this.deel(deelId);
+    if (!d) return;
+    const v = this.project.meta.volgorde;
+    if (d.voor === id) return;
+    this._delenLos(id);
+    v.splice(v.indexOf(id), 1);
+    const k = d.voor ? v.indexOf(d.voor) : v.length;
+    v.splice(k < 0 ? v.length : k, 0, id);
+    d.voor = id;
     this._meta();
     this._gewijzigd();
   }
@@ -362,6 +430,7 @@ class Store extends EventTarget {
       vergrendeld: p.meta.vergrendeld,
       vergrendelPagina: p.meta.vergrendelPagina,
       huidig: p.meta.huidig,
+      delen: this.delen().map((d) => ({ id: d.id, titel: d.titel, voor: d.voor })),
     }, null, 2) + '\n';
   }
 
@@ -379,7 +448,10 @@ class Store extends EventTarget {
   manuscriptMd() {
     const delen = [];
     if (this.project.meta.titel) delen.push('# ' + this.project.meta.titel + '\n');
-    for (const h of this.lijst()) delen.push(chapterToMd(h.titel, h.md));
+    for (const r of this.rijen()) {
+      if (r.soort === 'deel') delen.push('# Deel: ' + (r.deel.titel || 'Zonder titel') + '\n');
+      else delen.push(chapterToMd(r.h.titel, r.h.md));
+    }
     for (const t of TABS) {
       const n = this.project.notities[t.key];
       if (n.length) delen.push(notitiesNaarMd(t.label, n));
@@ -471,6 +543,7 @@ export function bestandenNaarProject(json, hoofdstukTeksten, notitieTeksten, oud
       vergrendeld: (j.vergrendeld || []).filter((id) => hoofdstukken[id]),
       vergrendelPagina: j.vergrendelPagina || null,
       huidig: hoofdstukken[j.huidig] ? j.huidig : volgorde[0],
+      delen: (j.delen || []).map((d) => ({ id: String(d.id), titel: String(d.titel || ''), voor: hoofdstukken[d.voor] ? d.voor : null })),
       aangemaakt: Date.now(),
     },
     hoofdstukken,
