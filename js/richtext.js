@@ -50,6 +50,7 @@ function toonBalk() {
   b.hidden = false;
   b.querySelector('[data-opmaak="scene"]').hidden = veld.dataset.scene === 'nee';
   b.querySelector('[data-opmaak="claude"]').hidden = veld.id !== 'tekst';
+  b.querySelector('[data-opmaak="noot"]').hidden = veld.id !== 'tekst';
   const bw = b.offsetWidth, bh = b.offsetHeight;
   let x = r.left + Math.min(r.width, 200) / 2 - bw / 2;
   let y = r.top - bh - 10;
@@ -95,6 +96,9 @@ export function voerUit(veld, wat) {
     sceneNa(veld);
   } else if (wat === 'claude') {
     document.dispatchEvent(new CustomEvent('klaar-voor-claude'));
+    return;
+  } else if (wat === 'noot') {
+    document.dispatchEvent(new CustomEvent('aantekening-maken'));
     return;
   }
   normaliseer(veld);

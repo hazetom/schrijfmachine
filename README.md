@@ -37,23 +37,41 @@ Vet en cursief blijven behouden. Werkt ook met `.md` en `.txt`.
 
 ---
 
-## Het boek: waar je binnenkomt
+## Twee plekken: Schrijven en Boek
 
-De app opent op het **Overzicht**: de titel van je boek, een grote knop **Verder schrijven** (of gewoon Enter) die je terugbrengt op de plek waar je was, de opbouw van het boek, en rechts wat er nog te bekijken is, zoals nieuwe namen die de app in je tekst vond. Bovenin staan de tabbladen:
+De app kent maar twee plekken. **Schrijven** is je pagina. **Boek** is alles over je boek. Rechtsboven staat altijd op dezelfde plek één knop om te wisselen ("Boek" of "Schrijven"), en **Esc** doet hetzelfde.
 
-- **Overzicht:** zie hierboven.
-- **Hoofdstukken:** de volgorde, delen, status, verhaallijn, scènedoel en samenvatting per hoofdstuk.
-- **Personages:** een raster met iedereen tegen alle hoofdstukken. Hoe groter de stip, hoe vaker die persoon er genoemd wordt. Klik op een stip voor de zinnen zelf; klik daarop en je zit in de tekst. Onderaan staan de nieuwe namen uit het hele boek.
-- **Verhaallijnen:** hetzelfde raster per verhaallijn, zodat je ziet waar een lijn stilvalt.
-- **Instellingen:** map, versies, exporteren, importeren, titel, avondstand en meer.
+**Terug waar je was.** Elke sprong is een stap: naar een ander hoofdstuk, een zoektreffer, een personage, je boek. De **terugtoets** bovenaan het Chromebook-toetsenbord (of **Alt+←**) brengt je één stap terug, op dezelfde plek in de tekst. Na een sprong staat onderin ook even "Terug naar De moeder, blz. 12".
 
-**Esc** wisselt tussen schrijven en het overzicht.
+**Waar ben ik?** Linksboven staat het pad: De Gevangen Observator › Act 1 › Hoofdstuk 1 · De moeder. Klik op de titel voor het overzicht, op het deel of het hoofdstuk om dat in de lijst open te klappen.
+
+### Boek
+
+De app opent op Boek, met drie tabbladen:
+
+- **Overzicht:** de titel, een grote knop **Verder schrijven** (of gewoon Enter) en de lijst met delen en hoofdstukken. Bij het hoofdstuk waar je bent staat "hier ben je". Klik een hoofdstuk aan en scènedoel, samenvatting, status en verhaallijn klappen eronder open; nog een keer klikken klapt ze in. Heb je verhaallijnen, dan kun je de lijst op één lijn laten zien. Rechts: wat er nog te bekijken is (je aantekeningen, namen die anders gespeld zijn) en vergrendelen.
+- **Personages:** wie komt waar voor, je personagekaarten, en de namen in je tekst. Zie hieronder.
+- **Aantekeningen:** alles wat je in de tekst noteerde, plus je Ideeën en Verhaallijnen.
+
+Instellingen, exporteren en de rest staan onder **Meer**.
 
 ### Snel bewerken in de lijst
 
-Achter elk hoofdstuk staat **···**: openen, hernoemen, nieuw hoofdstuk hierna, nieuw deel vanaf hier, omhoog, omlaag, vergrendelen, verwijderen. Bij een deel: hernoemen, nieuw hoofdstuk in dit deel, deel verwijderen. Slepen kan ook nog.
+Achter elk hoofdstuk staat **···**: openen, hernoemen, nieuw hoofdstuk hierna, nieuw deel vanaf hier, omhoog, omlaag, vergrendelen, verwijderen. Bij een deel: hernoemen, nieuw hoofdstuk in dit deel, deel verwijderen. Slepen kan ook.
 
-**Verwijderen** vraagt niets, maar rechtsonder staat tien seconden **Ongedaan maken**. Daarna is het nog steeds niet weg: er is vooraf een versie gemaakt (**Versies terugzetten**) en het bestand staat in `Prullenbak/` in je map. Een geselecteerd hoofdstuk kun je ook met de Delete-toets weghalen.
+**Verwijderen** vraagt niets, maar rechtsonder staat tien seconden **Ongedaan maken**. Daarna is het nog steeds niet weg: er is vooraf een versie gemaakt (**Versies terugzetten**) en het bestand staat in `Prullenbak/` in je map. Een gekozen hoofdstuk kun je ook met de Delete-toets weghalen.
+
+## Aantekeningen in de tekst
+
+Zet je cursor bij een woord (of selecteer een stuk) en druk **Ctrl+Alt+A**, of kies **NOOT** in het balkje dat verschijnt als je iets selecteert. Typ wat je later nog wilt doen of checken, bijvoorbeeld "was dit dinsdag?".
+
+- Het woord krijgt een zacht okerkleurig vlakje. Staat je cursor erin, dan zie je de aantekening onderin, met **Klaar**, **Bewerk** en **Verwijder**.
+- Open aantekeningen staan op het overzicht onder "Nog te bekijken" en allemaal bij Boek > Aantekeningen. Een klik brengt je naar de plek.
+- Ze schuiven mee als je tekst ervoor schrijft. Ze staan in `schrijfmachine.json`, niet in de tekst zelf, dus ze gaan nooit mee in de export en tellen niet mee bij de woorden.
+
+## Het spiekbriefje
+
+**Spiekbrief** (of **Ctrl+Alt+N**) zet naast je tekst alles over het hoofdstuk waar je in zit: het scènedoel (ook te bewerken), de samenvatting van het vorige hoofdstuk, wie erin voorkomt (een klik opent de kaart, hier naast je tekst), de aantekeningen in dit hoofdstuk, en een vakje om snel een idee te noteren (Ctrl+Enter). Dat idee komt bij Ideeën, met het hoofdstuk erbij.
 
 ---
 
@@ -91,7 +109,7 @@ De Markdown is gewoon leesbaar: `**vet**`, `*cursief*`, `## Kopje` en `* * *` vo
 
 ## Delen (acts)
 
-Bij **Hoofdstukken** maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren · De moeder". In de export krijgt elk deel een eigen pagina.
+In de lijst op het overzicht maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren › De moeder". In de export krijgt elk deel een eigen pagina.
 
 ## Nummering
 
@@ -110,22 +128,25 @@ Selecteer een stuk tekst (of niets) en klik in het balkje op **CLAUDE**, of druk
 
 **Eenmalig:** maak in Claude een project (bijvoorbeeld "Boek") en plak bij de instructies de tekst die je krijgt met **Projectinstructies kopiëren** onderin het paneel. Je book bible kun je als kennis aan dat project toevoegen.
 
-## Personages herkennen
+## Personages
 
-Bij **Hoofdstukken** staat per hoofdstuk wie erin voorkomt en welke namen de app nog niet kent ("Volgens mij komen ook voor"). Per naam kies je **Personage**, **Is dezelfde als…** (voor een bijnaam of een andere schrijfwijze), **Plaats** of **Negeren**.
+**Jij bepaalt de cast, de app zoekt ze op.** Bij Boek > Personages maak je een kaart per personage (naam, rol, kleur, notities). Vanaf dat moment:
 
-Een bevestigd personage is overal dezelfde persoon: "Frank Philips" maakt ook elke losse "Frank" en "Philips" tot dezelfde Frank, en wat je toevoegt bij **Ook genoemd als** (op de personagekaart) telt ook mee. Op de kaart zie je onder **Komt voor in** per hoofdstuk de zinnen waarin hij of zij genoemd wordt; een klik brengt je erheen. Met **Klaar voor Claude** op de kaart gaan precies die passages mee om de kaart te laten bijwerken.
+- **Wie komt waar voor:** een raster met je cast tegen alle hoofdstukken. Hoe groter de stip, hoe vaker iemand genoemd wordt. Klik op een stip voor de zinnen zelf, en op een zin om erheen te gaan. Achteraan staat waar iemand **laatst genoemd** is.
+- **Eén persoon, alle namen:** "Frank Philips" maakt ook elke losse "Frank" en "Philips" tot dezelfde Frank. Bijnamen zet je bij **Ook genoemd als** op de kaart.
+- **Schrijfwijze:** staat er ergens "Phillips" terwijl je personage "Philips" heet, dan meldt de app dat. Kies **Zoek en vervang**, **Is ook Frank Philips** (een bewuste bijnaam) of **Klopt zo**.
+- **Klaar voor Claude** op de kaart kopieert een verzoek om de kaart bij te werken, met alle passages waarin dit personage voorkomt.
 
-Bij **Personages** zie je dat voor het hele boek in één raster.
+**Namen in je tekst** (ingeklapt, onderaan) zijn namen die de app vond maar die nog geen personage zijn. Alleen namen die minstens twee keer voorkomen, dus een merk of land dat één keer langskomt zie je niet. Per naam kies je **Personage**, **Hoort bij…** (typ of kies een naam, ook een die nog geen personage is) of **Geen personage**. Is een naam het begin van een andere naam, dan vraagt de app het zelf: "Isa: hoort bij Isabelle?" Vink er een paar aan om ze in één keer op "Geen personage" te zetten; ze komen niet meer terug.
 
-Dit gaat zonder AI, dus "hij" en "zij" telt de app niet, en een rol zonder naam ("de ober") vindt hij pas als je die zelf als personage aanmaakt.
+De app vraagt hier nergens anders ongevraagd aandacht voor. Dit gaat zonder AI, dus "hij" en "zij" telt hij niet mee: het raster laat zien waar een naam genoemd wordt.
 
 ## Tijdens het schrijven
 
-- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (terug naar het overzicht van je boek), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
+- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (naar Boek), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
 - **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
 - **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
-- **Scènes.** De kopjes in een hoofdstuk staan bij **Hoofdstukken** onder het scènedoel; een klik brengt je erheen.
+- **Scènes.** De kopjes in een hoofdstuk staan in de lijst op het overzicht, onder het scènedoel; een klik brengt je erheen.
 
 ## Instellingen (Meer > Instellingen)
 
@@ -151,13 +172,15 @@ Elke export krijgt de datum en tijd in de naam, zodat een eerdere export nooit w
 | Ctrl+PageDown / Ctrl+PageUp | Volgend / vorig hoofdstuk |
 | Ctrl+F | Zoeken en vervangen (of A12: naar alinea 12) |
 | Ctrl+Alt+C | Klaar voor Claude |
-| Ctrl+Alt+N | Notities open/dicht |
-| Ctrl+Alt+H | Boek > Hoofdstukken |
+| Ctrl+Alt+A | Aantekening op de plek van je cursor |
+| Ctrl+Alt+N | Spiekbriefje open/dicht |
+| Ctrl+Alt+H | Wisselen tussen schrijven en Boek |
 | Ctrl+S | Nu opslaan (gebeurt ook vanzelf) |
-| Esc | Tussen schrijven en het overzicht |
+| Esc | Wisselen tussen schrijven en Boek |
+| Terugtoets of Alt+← | Terug naar waar je was |
 | Delete (in de lijst) | Hoofdstuk verwijderen, met Ongedaan maken |
 
-Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE en CLAUDE.
+Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE, NOOT en CLAUDE.
 
 ---
 
@@ -165,8 +188,8 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE en CLA
 
 - **Bladeren:** PageDown/PageUp, klikken in de lege rand naast de tekst, de pijltjes onderin, of scrollen met het touchpad (één pagina per beweging). Typ of wis je over de rand van een pagina, dan slaat de app vanzelf om.
 - **Verbleken:** alle alinea's vóór de alinea waar je cursor staat zijn iets lichter. Zet je de cursor terug in een oude alinea, dan wordt die weer donker.
-- **Vergrendelen:** de knop **Vergrendel** zet alle eerdere hoofdstukken en de eerdere pagina's van dit hoofdstuk achter een waas. In **Hoofdstukken** kun je ook een eigen reeks kiezen ("Vergrendel 1 t/m 9") of één hoofdstuk apart. Een vergrendeld hoofdstuk kun je niet per ongeluk bewerken. Eén klik op **Ontgrendel** en alles is weer zichtbaar.
-- **Verhaallijnen:** de kleurlabels van hoofdstukken komen uit Notities > Verhaallijnen. Je kunt er ook direct een maken vanuit een hoofdstuk ("Nieuwe verhaallijn…"). Kleuren: blauw, rood, oker, groen, pruim en grijs, allemaal gedempt.
+- **Vergrendelen:** de knop **Vergrendel** zet alle eerdere hoofdstukken en de eerdere pagina's van dit hoofdstuk achter een waas. Op het overzicht (rechts, bij Vergrendelen) kun je ook een eigen reeks kiezen ("Vergrendel 1 t/m 9") of één hoofdstuk apart. Een vergrendeld hoofdstuk kun je niet per ongeluk bewerken. Eén klik op **Ontgrendel** en alles is weer zichtbaar.
+- **Verhaallijnen:** de kleurlabels van hoofdstukken komen uit Boek > Aantekeningen > Verhaallijnen. Je kunt er ook direct een maken vanuit een hoofdstuk ("Nieuwe verhaallijn…"). Kleuren: blauw, rood, oker, groen, pruim en grijs, allemaal gedempt.
 - **Status:** Idee, Concept, Herschrijven, Klaar.
 - **Volgorde:** slepen in de lijst, de knoppen Omhoog/Omlaag, of Alt+pijltje.
 - **Bestandsnamen** van hoofdstukken krijgen de titel van het moment van aanmaken plus een korte code. Hernoem je een hoofdstuk, dan blijft de bestandsnaam gelijk (de nieuwe titel staat wel bovenin het bestand en in het projectbestand). Zo raakt er nooit een bestand zoek.
@@ -174,7 +197,7 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE en CLA
 - **Plakken** gaat altijd als platte tekst, zodat er geen vreemde lettertypes of kleuren in je manuscript komen.
 - **Typ je verder na een vet of cursief woord,** dan loopt de opmaak door (zoals in Word). Ctrl+B of Ctrl+I zet hem weer uit.
 - **De docx-export** gebruikt geen externe library: de app maakt het bestand zelf en pakt het in met de ingebouwde compressie van Chrome. Dat werkt dus ook offline.
-- **Geen dagdoel, statistieken of meldingen.** Alleen het aantal woorden per hoofdstuk in het hoofdstukkenscherm.
+- **Geen dagdoel, statistieken of meldingen.** Alleen het aantal woorden per hoofdstuk en in totaal, op het overzicht.
 
 ## Updates
 

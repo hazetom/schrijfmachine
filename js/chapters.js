@@ -1,20 +1,23 @@
-// Het hoofdstukkenscherm: lijst met kleurlabels, status en woorden, scènedoel,
-// volgorde aanpassen en vergrendelen.
+// De hoofdstukkenlijst op het overzicht van Boek: delen en hoofdstukken, met ··· per rij.
+// Klik je een hoofdstuk aan, dan klappen de gegevens (scènedoel, samenvatting, status) eronder open.
 
 import { store, STATUSSEN } from './store.js';
 import { el, dialoog, woorden } from './ui.js';
 import { mdToBlocks } from './markdown.js';
-import { aanwezig, voorstellen, maakPersonage, voegAliasToe, markeerAls } from './personages.js';
+import { aanwezig } from './personages.js';
 
 export class Hoofdstukken {
-  constructor({ openSchrijven, openNotities, verwijder }) {
+  constructor({ openSchrijven, openPersoon, verwijder }) {
     this.verwijderCb = verwijder;
     this.lijstEl = document.getElementById('hs-lijst');
-    this.detailEl = document.getElementById('hs-detail');
+    this.detailEl = el('section', { class: 'hs-detail', id: 'hs-detail', 'aria-label': 'Gekozen hoofdstuk' });
+    this.ingeklapt = false;
+    this.filterLijn = null;
+    this.naRender = null;
     this.slotEl = document.getElementById('hs-slotbalk');
     this.gekozen = null;
     this.openSchrijven = openSchrijven;
-    this.openNotities = openNotities;
+    this.openPersoon = openPersoon;
     this.sleepId = null;
     document.getElementById('hs-nieuw').addEventListener('click', () => {
       const id = store.nieuwHoofdstuk(null);
@@ -29,6 +32,7 @@ export class Hoofdstukken {
       this.focusTitel();
     });
     this.lijstEl.addEventListener('keydown', (e) => {
+      if (e.target.closest('.hs-uitklap')) return; // typen in de gegevens
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         this.verschuif(this.gekozen, e.key === 'ArrowUp' ? -1 : 1, true);
@@ -47,8 +51,9 @@ export class Hoofdstukken {
     });
   }
 
-  toon() {
-    this.gekozen = store.meta.huidig;
+  toon(id = null) {
+    this.gekozen = id || store.meta.huidig;
+    this.ingeklapt = false;
     this.render();
     const rij = this.lijstEl.querySelector('[aria-current="true"]');
     if (rij) rij.scrollIntoView({ block: 'nearest' });
@@ -60,6 +65,7 @@ export class Hoofdstukken {
   }
 
   focusTitel() {
+    if (!this.detailEl.isConnected) { this.ingeklapt = false; this.render(); }
     const t = this.detailEl.querySelector('.titelveld');
     if (t) { t.focus(); t.select(); }
   }
@@ -68,7 +74,7 @@ export class Hoofdstukken {
     if (!store.hoofdstuk(this.gekozen) && !store.deel(this.gekozen)) this.gekozen = store.meta.volgorde[0];
     this.renderSlot();
     this.renderLijst();
-    this.renderDetail();
+    if (this.naRender) this.naRender();
   }
 
   renderSlot() {
@@ -143,6 +149,7 @@ export class Hoofdstukken {
         }, el('span', { class: 'hs-deel-titel', text: d.titel || 'Zonder titel' }));
         this.koppelRij(rij, d.id);
         ol.appendChild(rij);
+        if (d.id === this.gekozen) this.uitklap(ol);
         continue;
       }
       const h = r.h;
@@ -153,6 +160,7 @@ export class Hoofdstukken {
       const rij = el('li', {
         class: 'hs-rij' + (store.isVergrendeld(h.id) ? ' slot' : ''),
         'aria-current': gekozen ? 'true' : 'false',
+        'aria-expanded': gekozen ? String(!this.ingeklapt) : null,
         tabindex: gekozen ? '0' : '-1',
         draggable: 'true',
         'data-id': h.id,
@@ -165,10 +173,21 @@ export class Hoofdstukken {
         lijn ? (lijn.naam || 'Verhaallijn') : ''),
       el('span', { class: 'hs-meta', text: (h.status || '') + ' · ' + (h.woorden || 0).toLocaleString('nl-NL') }),
       );
+      if (this.filterLijn && h.lijn !== this.filterLijn) rij.classList.add('gedimd');
+      if (h.id === store.meta.huidig) rij.classList.add('huidig');
       rij.addEventListener('dblclick', () => this.openSchrijven(h.id));
       this.koppelRij(rij, h.id);
       ol.appendChild(rij);
+      if (gekozen) this.uitklap(ol);
     }
+  }
+
+  // de gegevens van het gekozen hoofdstuk of deel, direct onder de rij
+  uitklap(ol) {
+    if (this.ingeklapt) return;
+    const li = el('li', { class: 'hs-uitklap' }, this.detailEl);
+    ol.appendChild(li);
+    this.renderDetail();
   }
 
   // Klikken en slepen, voor hoofdstukken en delen.
@@ -177,7 +196,13 @@ export class Hoofdstukken {
     const menuKnop = el('button', { class: 'rij-menu-knop', 'aria-label': 'Meer acties', title: 'Meer acties', text: '···' });
     menuKnop.addEventListener('click', (e) => { e.stopPropagation(); this.rijMenu(id, menuKnop); });
     rij.appendChild(menuKnop);
-    rij.addEventListener('click', () => { this.gekozen = id; this.render(); this.focusRij(); });
+    rij.addEventListener('click', (e) => {
+      if (e.target.closest('.rij-menu-knop')) return;
+      // nog een keer klikken klapt de gegevens in of uit
+      if (this.gekozen === id) this.ingeklapt = !this.ingeklapt; else { this.gekozen = id; this.ingeklapt = false; }
+      this.render();
+      this.focusRij();
+    });
     rij.addEventListener('dragstart', (e) => { this.sleepId = id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); });
     rij.addEventListener('dragover', (e) => {
       if (!this.sleepId || this.sleepId === id) return;
@@ -425,61 +450,20 @@ export class Hoofdstukken {
       el('div', { class: 'hs-knoppen' },
         el('button', { class: 'knop omlijnd', text: 'Verder schrijven', onclick: () => this.openSchrijven(h.id) })),
       el('div', { class: 'hs-klein' },
-        el('button', { class: 'knop', text: 'Verhaallijnen', onclick: () => this.openNotities('verhaallijnen') }),
-        el('span', { class: 'leeg-hint', style: { fontSize: '13px', alignSelf: 'center' }, text: 'Verplaatsen, verwijderen en meer: de drie puntjes in de lijst.' }),
+        el('span', { class: 'leeg-hint', style: { fontSize: '13px', alignSelf: 'center' }, text: 'Verplaatsen, verwijderen en meer: de drie puntjes achter de titel. Nog een keer klikken klapt dit in.' }),
       ),
     ].filter(Boolean));
     requestAnimationFrame(() => { groei(); groeiSamen(); });
   }
 
-  // Wie komt er in dit hoofdstuk voor, en welke namen kent de app nog niet?
+  // Wie komt er in dit hoofdstuk voor? Een klik opent de kaart bij Personages.
   personagesBlok(h) {
     const aanw = aanwezig(h);
-    const vs = voorstellen(h);
-    if (!aanw.length && !vs.length) return null;
-    const blok = el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Personages' }));
-    if (aanw.length) {
-      blok.append(el('div', { class: 'hs-personen' }, ...aanw.map(({ persoon, aantal }) => el('button', {
-        class: 'hs-persoon', title: 'Open de kaart van ' + persoon.naam, onclick: () => this.openNotities('personages', persoon.id),
+    if (!aanw.length) return null;
+    return el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Wie komt erin voor' }),
+      el('div', { class: 'hs-personen' }, ...aanw.map(({ persoon, aantal }) => el('button', {
+        class: 'hs-persoon', title: 'Open de kaart van ' + persoon.naam, onclick: () => this.openPersoon(persoon.id),
       }, persoon.kleur ? el('span', { class: 'vlak', style: { backgroundColor: persoon.kleur } }) : null, el('span', { class: 'naam', text: persoon.naam }), el('span', { class: 'aantal', text: String(aantal) })))));
-    }
-    if (vs.length) {
-      const personen = store.notities('personages');
-      blok.append(el('span', { class: 'label', text: aanw.length ? 'Volgens mij komen ook voor' : 'Volgens mij komen deze personages voor', style: { marginTop: '8px' } }));
-      const lijst = el('div', {});
-      for (const v of vs.slice(0, 12)) {
-        const zelfde = el('select', { 'aria-label': 'Is dezelfde als' }, el('option', { value: '', text: 'Is dezelfde als…' }), ...personen.map((p) => el('option', { value: p.id, text: p.naam || 'Zonder naam' })));
-        zelfde.addEventListener('change', () => { if (zelfde.value) { voegAliasToe(zelfde.value, v); this.renderDetail(); } });
-        lijst.append(el('div', { class: 'voorstel' },
-          el('span', { class: 'wie' }, v.naam + ' ', el('span', { class: 'aantal', text: '(' + v.aantal + '×)' }), v.aliassen.length ? el('span', { class: 'ook', text: 'ook: ' + v.aliassen.join(', ') }) : null),
-          el('button', { class: 'knop', text: 'Personage', title: 'Toevoegen als nieuw personage', onclick: () => { maakPersonage(v); this.renderDetail(); } }),
-          personen.length ? zelfde : null,
-          el('button', { class: 'knop', text: 'Plaats', onclick: () => { markeerAls(v.naam, 'plaats'); this.renderDetail(); } }),
-          el('button', { class: 'knop', text: 'Negeren', onclick: () => { markeerAls(v.naam, 'negeer'); this.renderDetail(); } })));
-      }
-      blok.append(lijst);
-    }
-    return blok;
-  }
-
-  async verwijder(h) {
-    const ok = await dialoog({
-      titel: 'Hoofdstuk verwijderen?',
-      inhoud: [
-        `"${h.titel || 'Zonder titel'}" (${woorden(h.woorden)}) gaat naar de prullenbak.`,
-        el('p', { class: 'klein', text: 'In je map komt het bestand in de map Prullenbak, en je kunt het ook terughalen via Meer > Versies terugzetten.' }),
-      ],
-      knoppen: [{ tekst: 'Annuleer', waarde: false }, { tekst: 'Verwijder', waarde: true, hoofd: true }],
-    });
-    if (!ok) return;
-    const { maakSnapshot } = await import('./snapshots.js');
-    await store.bewaarLokaal();
-    await maakSnapshot('vlak voor verwijderen van "' + (h.titel || 'Zonder titel') + '"');
-    const v = store.meta.volgorde;
-    const k = v.indexOf(h.id);
-    store.verwijderHoofdstuk(h.id);
-    this.gekozen = v[Math.max(0, k - 1)];
-    this.render();
   }
 }
 

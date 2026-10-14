@@ -1,6 +1,6 @@
 // Personages herkennen en koppelen, zonder AI.
 //
-// 1. Voorstellen: namen zijn woorden met een hoofdletter die niet aan het begin van een zin
+// 1. Namen vinden: woorden woorden met een hoofdletter die niet aan het begin van een zin
 //    staan (of vaak terugkomen), die nergens in het boek met een kleine letter voorkomen.
 //    "Frank Philips" wordt één voorstel, met "Frank" en "Philips" als andere namen.
 // 2. Koppelen: elk bevestigd personage heeft een vaste id. Zijn naam, de losse delen daarvan
@@ -280,4 +280,83 @@ export function markeerAls(naam, soort) {
   const kopie = { plaatsen: [...(n.plaatsen || [])], genegeerd: [...(n.genegeerd || [])] };
   (soort === 'plaats' ? kopie.plaatsen : kopie.genegeerd).push(naam);
   store.zetNamen(kopie);
+}
+
+// ---------- voor het hele boek ----------
+// Namen in de tekst die nog geen personage zijn. Alleen namen die minstens twee keer voorkomen:
+// een merk of land dat één keer langskomt, hoeft je aandacht niet.
+export function namenInBoek(minimaal = 2) {
+  const samen = new Map();
+  for (const h of store.lijst()) {
+    for (const v of voorstellen(h)) {
+      const x = samen.get(v.naam) || { naam: v.naam, aantal: 0, aliassen: new Set(), eerste: h };
+      x.aantal += v.aantal;
+      v.aliassen.forEach((a) => x.aliassen.add(a));
+      samen.set(v.naam, x);
+    }
+  }
+  return [...samen.values()].filter((x) => x.aantal >= minimaal)
+    .map((x) => ({ ...x, aliassen: [...x.aliassen].filter((a) => a !== x.naam) }))
+    .sort((a, b) => b.aantal - a.aantal || a.naam.localeCompare(b.naam));
+}
+
+// "Isa" is waarschijnlijk "Isabelle": een losse naam waarmee een langere naam begint.
+export function lijktOp(naam, kandidaten) {
+  if (naam.includes(' ') || naam.length < 2) return null;
+  const n = naam.toLowerCase();
+  for (const k of kandidaten) {
+    if (k === naam) continue;
+    for (const d of delenVanNaam(k)) if (d.length > naam.length && d.toLowerCase().startsWith(n)) return k;
+  }
+  return null;
+}
+
+function afstand(a, b) {
+  const m = a.length, n = b.length;
+  let vorige = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const rij = [i];
+    for (let j = 1; j <= n; j++) rij[j] = Math.min(vorige[j] + 1, rij[j - 1] + 1, vorige[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    vorige = rij;
+  }
+  return vorige[n];
+}
+
+// Schrijfwijze controleren: staat er ergens "Phillips" terwijl het personage "Philips" heet?
+export function naamControle() {
+  const personen = store.notities('personages');
+  const bekend = new Map(); // woord -> persoon
+  for (const p of personen) {
+    for (const n of [p.naam, ...(p.aliassen || [])]) for (const d of delenVanNaam(n)) if (!bekend.has(d)) bekend.set(d, p);
+  }
+  if (!bekend.size) return [];
+  const genegeerd = new Set(store.namen().genegeerd || []);
+  const tel = new Map();
+  for (const h of store.lijst()) {
+    for (const b of blokkenVan(h)) {
+      for (const m of b.tekst.matchAll(WOORD_RE)) {
+        const w = m[0].replace(/['’]s$/, '');
+        if (!isHoofdletter(w) || w.length < 4) continue;
+        const x = tel.get(w) || { aantal: 0, eerste: h };
+        x.aantal++;
+        tel.set(w, x);
+      }
+    }
+  }
+  const klein = kleineWoorden();
+  const uit = [];
+  for (const [w, x] of tel) {
+    if (bekend.has(w) || genegeerd.has(w) || klein.has(w.toLowerCase()) || STOP.has(w.toLowerCase())) continue;
+    for (const [d, p] of bekend) {
+      if (d[0] !== w[0] || Math.abs(d.length - w.length) > 2) continue;
+      if (w === d + 's' || d === w + 's' || w === d + 'e') continue;
+      const af = afstand(w.toLowerCase(), d.toLowerCase());
+      const kort = Math.min(w.length, d.length);
+      if ((af === 1 && kort >= 4) || (af === 2 && kort >= 7)) {
+        uit.push({ variant: w, aantal: x.aantal, eerste: x.eerste, juist: d, persoon: p, juistAantal: (tel.get(d) || { aantal: 0 }).aantal });
+        break;
+      }
+    }
+  }
+  return uit.sort((a, b) => a.aantal - b.aantal);
 }

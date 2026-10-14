@@ -5,6 +5,8 @@ import { vraagBlijvendeOpslag, db } from './db.js';
 import { Editor } from './editor.js';
 import { Hoofdstukken, vraagTekst } from './chapters.js';
 import { Notities } from './notes.js';
+import { Spiek } from './spiek.js';
+import { plaatsIn, plaatsInHoofdstuk, woordRond } from './aantekeningen.js';
 import { initRijkeTekst } from './richtext.js';
 import * as map from './folder.js';
 import { maakSnapshot, lijstSnapshots, zetSnapshotTerug, startAutomatisch } from './snapshots.js';
@@ -18,7 +20,7 @@ import { Boek } from './boek.js';
 import { blokVan } from './richtext.js';
 
 const app = document.getElementById('app');
-let editor, hoofdstukken, notities, kantlijn, zoeken, claude, boek;
+let editor, hoofdstukken, spiek, kantlijn, zoeken, claude, boek;
 let swRegistratie = null;
 let updateKlaar = false;
 let bijwerkenGevraagd = false;
@@ -26,48 +28,159 @@ let melding = null;
 let meldingTimer = null;
 
 // ---------- weergave ----------
+// Er zijn twee plekken: Schrijven en Boek. Eén knop rechtsboven (en Esc) wisselt ertussen.
 function zetView(view, { focus = true, tab = null } = {}) {
   if (view === 'hoofdstukken' || view === 'boek') {
     editor.bewaar();
+    editor.onthoudPlek();
     notitiesBewaar();
     if (zoeken && zoeken.open) zoeken.sluit();
     if (claude && claude.open) claude.sluit();
+    verbergNootBel();
     app.dataset.view = 'hoofdstukken';
     document.getElementById('view-schrijven').hidden = true;
     document.getElementById('view-hoofdstukken').hidden = false;
-    boek.kies(tab || (view === 'hoofdstukken' && !tab ? boek.tab : 'overzicht'));
-    if (boek.tab === 'overzicht') { const v = document.getElementById('ov-verder'); if (v) v.focus(); }
+    boek.kies(tab || 'overzicht');
+    if (focus && boek.tab === 'overzicht') { const v = document.getElementById('ov-verder'); if (v) v.focus(); }
   } else {
+    notitiesBewaar();
     app.dataset.view = 'schrijven';
     document.getElementById('view-hoofdstukken').hidden = true;
     document.getElementById('view-schrijven').hidden = false;
     editor.herbereken();
     if (focus) editor.focus();
     if (kantlijn) kantlijn.werkBij();
+    if (spiek && spiek.open) spiek.werkBij();
   }
+  document.getElementById('knop-wissel-tekst').textContent = app.dataset.view === 'schrijven' ? 'Boek' : 'Schrijven';
   werkKicker();
 }
 
-function notitiesBewaar() { if (notities) notities.bewaar(); }
+function notitiesBewaar() { Notities.bewaarAlle(); }
 
+// Naar Boek (overzicht), eventueel met een hoofdstuk of deel opengeklapt
+function naarBoek(gekozen = null) {
+  navigeer(() => {
+    zetView('boek', { tab: 'overzicht', focus: !gekozen });
+    if (gekozen) { hoofdstukken.toon(gekozen); hoofdstukken.focusRij(); }
+  });
+}
+function naarSchrijven() { navigeer(() => zetView('schrijven')); }
+function wissel() { if (app.dataset.view === 'schrijven') naarBoek(); else naarSchrijven(); }
+
+// Het pad bovenin: De Gevangen Observator › Act 1 › Hoofdstuk 1 · De moeder. Elk stukje is klikbaar.
 function werkKicker() {
   const k = document.getElementById('kicker');
   k.innerHTML = '';
+  const titel = store.meta.titel || 'Je boek';
+  const kruim = (tekst, fn, uitleg) => (fn ? el('button', { class: 'kruim', text: tekst, title: uitleg, onclick: fn }) : el('span', { class: 'kruim', text: tekst }));
+  const pijl = () => el('span', { class: 'kruim-pijl', 'aria-hidden': 'true', text: '›' });
   if (app.dataset.view === 'hoofdstukken') {
-    k.textContent = store.meta.titel || 'Je boek';
+    k.append(kruim(titel));
   } else {
     const h = store.huidig();
+    k.append(kruim(titel, () => naarBoek(), 'Naar het overzicht van je boek'));
     if (h) {
-      const lijn = h.lijn ? store.verhaallijn(h.lijn) : null;
-      if (lijn && lijn.kleur) k.append(el('span', { class: 'vlak', 'aria-hidden': 'true', style: { backgroundColor: lijn.kleur } }));
       const deel = store.deelVan(h.id);
-      const delen = [deel ? (deel.titel || 'Deel') : null, store.label(h.id), h.titel || 'Zonder titel'].filter(Boolean);
-      k.append(el('span', { text: delen.join(' · ') }));
+      if (deel) k.append(pijl(), kruim(deel.titel || 'Deel', () => naarBoek(deel.id), 'Dit deel in het overzicht'));
+      const lijn = h.lijn ? store.verhaallijn(h.lijn) : null;
+      k.append(pijl());
+      if (lijn && lijn.kleur) k.append(el('span', { class: 'vlak', 'aria-hidden': 'true', style: { backgroundColor: lijn.kleur } }));
+      k.append(kruim([store.label(h.id), h.titel || 'Zonder titel'].filter(Boolean).join(' · '), () => naarBoek(h.id), 'Gegevens van dit hoofdstuk'));
     }
   }
   const iets = store.meta.vergrendeld.length || store.meta.vergrendelPagina;
   document.getElementById('knop-vergrendel-tekst').textContent = iets ? 'Ontgrendel' : 'Vergrendel';
   document.getElementById('knop-vergrendel').title = iets ? 'Alles weer zichtbaar maken' : 'Alles vóór deze pagina achter een waas zetten';
+}
+
+// ---------- terug ----------
+// Elke sprong (hoofdstuk, zoektreffer, personage, Boek) wordt een stap in de geschiedenis van het venster.
+// Zo werkt de terugtoets van de Chromebook (en Alt+←): je komt terug waar je was, op dezelfde plek.
+let herstellen = false;
+let navBezig = false;
+let verversTimer = null;
+let chipTimer = null;
+
+function staat() {
+  const schrijven = app.dataset.view === 'schrijven';
+  const s = { view: schrijven ? 'schrijven' : 'boek', id: store.meta.huidig };
+  if (schrijven) {
+    s.plek = (editor.id === store.meta.huidig && editor.plekNu()) || editor.plekken[store.meta.huidig] || null;
+    s.pagina = editor.pagina;
+  } else {
+    s.tab = boek.tab;
+    s.persoon = boek.persoon;
+    s.gekozen = hoofdstukken.gekozen;
+  }
+  return s;
+}
+
+function zelfde(a, b) {
+  if (!a || !b || a.view !== b.view) return false;
+  if (a.view === 'boek') return a.tab === b.tab && (a.persoon || null) === (b.persoon || null);
+  return a.id === b.id;
+}
+
+// opties: sprong (ook binnen hetzelfde hoofdstuk een stap), plek (waar de cursor heen gaat), stil (geen terug-knopje)
+function navigeer(fn, { sprong = false, plek = null, stil = false } = {}) {
+  if (herstellen || navBezig) return fn();
+  navBezig = true;
+  try {
+    const oud = staat();
+    history.replaceState(oud, '');
+    const r = fn();
+    const nieuw = staat();
+    if (plek) nieuw.plek = plek;
+    if (sprong || !zelfde(oud, nieuw)) {
+      history.pushState(nieuw, '');
+      if (!stil && nieuw.view === 'schrijven' && (oud.view === 'schrijven' || oud.tab !== 'overzicht')) toonTerugChip(oud);
+    }
+    return r;
+  } finally {
+    navBezig = false;
+  }
+}
+
+// de huidige stap bijwerken (waar staat de cursor nu), zodat terug en weer vooruit klopt
+function ververs() {
+  clearTimeout(verversTimer);
+  verversTimer = setTimeout(() => { if (!herstellen && !navBezig) history.replaceState(staat(), ''); }, 800);
+}
+
+function beschrijf(s) {
+  if (s.view === 'schrijven') {
+    const h = store.hoofdstuk(s.id);
+    return (h ? h.titel || 'Zonder titel' : 'je tekst') + (s.pagina != null ? ', blz. ' + (s.pagina + 1) : '');
+  }
+  return { personages: 'Personages', aantekeningen: 'Aantekeningen', overzicht: 'het overzicht' }[s.tab] || 'je boek';
+}
+
+function toonTerugChip(oud) {
+  const c = document.getElementById('terug-chip');
+  c.textContent = '‹ Terug naar ' + beschrijf(oud);
+  c.hidden = false;
+  clearTimeout(chipTimer);
+  chipTimer = setTimeout(verbergTerugChip, 15000);
+}
+function verbergTerugChip() { document.getElementById('terug-chip').hidden = true; }
+
+function herstel(s) {
+  verbergTerugChip();
+  if (s.view === 'boek') {
+    zetView('boek', { tab: s.tab, focus: false });
+    if (s.tab === 'overzicht' && s.gekozen && (store.hoofdstuk(s.gekozen) || store.deel(s.gekozen))) { hoofdstukken.toon(s.gekozen); hoofdstukken.focusRij(); }
+    if (s.tab === 'personages' && s.persoon) boek.openKaart(s.persoon);
+    return;
+  }
+  if (!store.hoofdstuk(s.id)) return;
+  const t = s.plek ? { blok: s.plek.blok, start: s.plek.teken, lengte: 0 } : null;
+  if (s.id === editor.id && s.id === store.meta.huidig && t) {
+    zetView('schrijven');
+    requestAnimationFrame(() => editor.selecteer(t.blok, t.start, 0));
+  } else {
+    openSchrijvenDirect(s.id, t ? { treffer: t } : null);
+  }
 }
 
 function werkPaginanummer() {
@@ -76,7 +189,13 @@ function werkPaginanummer() {
   document.getElementById('knop-volgende').disabled = editor.pagina >= editor.aantal - 1;
 }
 
-function openSchrijven(id, opties = null) {
+function openSchrijven(id, opties = null, { stil = false } = {}) {
+  const t = opties && opties.treffer;
+  const plek = t ? { blok: t.blok, teken: t.start } : (opties && opties.blok != null ? { blok: opties.blok, teken: 0 } : null);
+  return navigeer(() => openSchrijvenDirect(id, opties), { sprong: !!plek, plek, stil });
+}
+
+function openSchrijvenDirect(id, opties = null) {
   if (id && (id !== store.meta.huidig || opties)) {
     editor.bewaar();
     store.zetHuidig(id);
@@ -112,7 +231,7 @@ function verwijderMetOngedaan(id) {
   if (wasHuidig) { editor.verwerp(); editor.laad(store.meta.huidig); }
   toonOngedaan('"' + (h.titel || 'Zonder titel') + '" verwijderd', () => {
     store.herstelHoofdstuk(kopie, index, delenIds);
-    if (app.dataset.view === 'hoofdstukken') { hoofdstukken.gekozen = kopie.id; boek.render(); if (boek.tab === 'hoofdstukken') hoofdstukken.render(); }
+    if (app.dataset.view === 'hoofdstukken') { hoofdstukken.gekozen = kopie.id; boek.render(); }
   });
 }
 
@@ -150,7 +269,7 @@ function anderHoofdstuk(delta) {
   const v = store.meta.volgorde;
   const k = v.indexOf(store.meta.huidig) + delta;
   if (k < 0 || k >= v.length) return;
-  openSchrijven(v[k]);
+  openSchrijven(v[k], null, { stil: true });
 }
 
 function vergrendelKnop() {
@@ -165,6 +284,102 @@ function vergrendelKnop() {
   }
   editor.pasVergrendelingToe();
   werkKicker();
+}
+
+// ---------- aantekeningen ----------
+let nootPlekken = []; // in het hoofdstuk dat open staat: [{ a, blok, start, lengte }]
+
+function markeerAantekeningen() {
+  nootPlekken = [];
+  const kan = window.CSS && CSS.highlights && window.Highlight;
+  const h = editor.id && store.hoofdstuk(editor.id);
+  if (!h) { if (kan) CSS.highlights.delete('aantekening'); return; }
+  const blokken = [...editor.el.children];
+  const teksten = blokken.map((b) => (b.tagName === 'HR' ? '' : b.textContent));
+  const ranges = [];
+  for (const a of store.aantekeningen(h.id)) {
+    if (a.klaar) continue;
+    const p = plaatsIn(teksten, a);
+    if (!p) continue;
+    const lengte = p.lengte || teksten[p.blok].length;
+    nootPlekken.push({ a, blok: p.blok, start: p.start, lengte });
+    if (kan && lengte) ranges.push(editor.bereik(p.blok, p.start, lengte));
+  }
+  if (kan) { if (ranges.length) CSS.highlights.set('aantekening', new Highlight(...ranges)); else CSS.highlights.delete('aantekening'); }
+  werkNootBel();
+}
+
+// Staat de cursor in een aantekening? Dan een klein balkje met de tekst ervan.
+function werkNootBel() {
+  const bel = document.getElementById('noot-bel');
+  if (app.dataset.view !== 'schrijven' || !nootPlekken.length) { bel.hidden = true; return; }
+  const p = editor.plekNu();
+  const x = p && nootPlekken.find((n) => n.blok === p.blok && p.teken >= n.start && p.teken <= n.start + n.lengte);
+  if (!x) { bel.hidden = true; return; }
+  if (!bel.hidden && bel.dataset.id === x.a.id) return;
+  const hId = editor.id;
+  bel.innerHTML = '';
+  bel.dataset.id = x.a.id;
+  bel.append(el('span', { class: 'noot-label', text: 'Aantekening' }), el('span', { class: 'noot-tekst', text: x.a.tekst }),
+    el('button', { class: 'knop link', text: 'Klaar', onmousedown: (e) => e.preventDefault(), onclick: () => { store.wijzigAantekening(hId, x.a.id, { klaar: true }); toonMelding('Aantekening afgerond; terug te vinden bij Boek > Aantekeningen', 5000); } }),
+    el('button', { class: 'knop link', text: 'Bewerk', onmousedown: (e) => e.preventDefault(), onclick: async () => {
+      const t = await vraagTekst('Aantekening', 'Wat wil je later nog doen of checken?', x.a.tekst);
+      if (t) store.wijzigAantekening(hId, x.a.id, { tekst: t });
+      editor.focus();
+    } }),
+    el('button', { class: 'knop link', text: 'Verwijder', onmousedown: (e) => e.preventDefault(), onclick: () => {
+      const kopie = { ...x.a };
+      store.verwijderAantekening(hId, x.a.id);
+      toonOngedaan('Aantekening verwijderd', () => store._zetAantekeningen(hId, [...store.aantekeningen(hId), kopie]));
+    } }));
+  bel.hidden = false;
+}
+function verbergNootBel() { const b = document.getElementById('noot-bel'); if (b) b.hidden = true; }
+
+// Ctrl+Alt+A: een aantekening op de plek van de cursor (of bij wat je geselecteerd hebt)
+async function maakAantekening() {
+  if (app.dataset.view !== 'schrijven') naarSchrijven();
+  if (!editor.id) return;
+  const blokken = [...editor.el.children];
+  const sel = document.getSelection();
+  let blok = -1, teken = 0, anker = '';
+  if (sel && sel.rangeCount && editor.el.contains(sel.anchorNode)) {
+    const r = sel.getRangeAt(0);
+    const b = blokVan(editor.el, r.startContainer);
+    blok = blokken.indexOf(b);
+    if (blok >= 0) {
+      const voor = document.createRange();
+      voor.selectNodeContents(b);
+      voor.setEnd(r.startContainer, r.startOffset);
+      teken = voor.toString().length;
+      const tekst = b.tagName === 'HR' ? '' : b.textContent;
+      if (!sel.isCollapsed) {
+        let eind = tekst.length;
+        if (b.contains(r.endContainer)) { const tot = document.createRange(); tot.selectNodeContents(b); tot.setEnd(r.endContainer, r.endOffset); eind = tot.toString().length; }
+        const ruw = tekst.slice(teken, Math.min(eind, teken + 120));
+        teken += ruw.length - ruw.trimStart().length;
+        anker = ruw.trim();
+      }
+      if (!anker) { const w = woordRond(tekst, teken); anker = w.anker; teken = w.start; }
+    }
+  }
+  if (blok < 0) { const p = editor.plekken[editor.id] || { blok: 0, teken: 0 }; blok = p.blok; teken = p.teken; }
+  const hId = editor.id;
+  const kort = anker.length > 40 ? anker.slice(0, 38) + '…' : anker;
+  const tekst = await vraagTekst(kort ? 'Aantekening bij "' + kort + '"' : 'Aantekening', 'Wat wil je later nog doen of checken?', '');
+  editor.focus();
+  if (!tekst) return;
+  editor.bewaar();
+  store.nieuweAantekening(hId, { blok, teken, anker, tekst });
+  editor.selecteer(blok, teken + anker.length, 0);
+  toonMelding('Aantekening bewaard; je ziet hem ook op het overzicht', 5000);
+}
+
+function openAantekening(hId, a) {
+  const h = store.hoofdstuk(hId);
+  if (!h) return;
+  const p = plaatsInHoofdstuk(h, a) || { blok: a.blok, start: 0 };
+  openSchrijven(hId, { treffer: { blok: p.blok, start: p.start, lengte: 0 } });
 }
 
 // ---------- status ----------
@@ -388,8 +603,10 @@ async function menuActie(actie) {
     if (app.dataset.view === 'hoofdstukken') boek.render();
   } else if (actie === 'claude') {
     openClaude();
+  } else if (actie === 'aantekening') {
+    await maakAantekening();
   } else if (actie === 'zoeken') {
-    if (app.dataset.view !== 'schrijven') zetView('schrijven');
+    if (app.dataset.view !== 'schrijven') naarSchrijven();
     zoeken.toon();
   } else if (actie === 'instellingen') {
     await instellingenDialoog();
@@ -548,8 +765,9 @@ async function versiesDialoog() {
     await zetSnapshotTerug(keuze);
     editor.laad(store.meta.huidig, { naarEinde: false });
     werkKicker();
-    if (notities.open) notities.render();
-    if (app.dataset.view === 'hoofdstukken') hoofdstukken.render();
+    Notities.verwerpAlle();
+    if (spiek.open) spiek.toonOverzicht();
+    if (app.dataset.view === 'hoofdstukken') boek.render();
     await map.syncNu();
     toonMelding('Versie van ' + datumTijd(keuze) + ' teruggezet', 8000);
   }
@@ -570,10 +788,12 @@ function hulp() {
       rij('Ctrl + PageUp', 'Vorig hoofdstuk'),
       rij('Ctrl + F', 'Zoeken en vervangen in het hele manuscript (of typ A12 om naar alinea 12 te gaan)'),
       rij('Ctrl + Alt + C', 'Klaar voor Claude: je selectie of hoofdstuk met je vraag naar het klembord'),
-      rij('Ctrl + Alt + N', 'Notities open/dicht'),
-      rij('Ctrl + Alt + H', 'Hoofdstukken'),
+      rij('Ctrl + Alt + A', 'Aantekening op de plek van je cursor (gaat niet mee in de export)'),
+      rij('Ctrl + Alt + N', 'Spiekbriefje: alles over dit hoofdstuk'),
+      rij('Ctrl + Alt + H', 'Wisselen tussen schrijven en je boek'),
       rij('Ctrl + S', 'Nu opslaan (gebeurt ook vanzelf)'),
       rij('Esc', 'Wisselen tussen schrijven en het overzicht van je boek'),
+      rij('Alt + ←', 'Terug naar waar je was (ook de terugtoets bovenaan het toetsenbord)'),
     ), el('p', { class: 'klein', text: 'Bladeren kan ook door in de lege rand naast de tekst te klikken. Ga je met de muis naar links, dan zie je je hoofdstukken en het scènedoel. In volledig scherm: houd Esc even ingedrukt om eruit te gaan.' })],
     knoppen: [{ tekst: 'Klaar', waarde: null, hoofd: true }],
   });
@@ -604,8 +824,13 @@ function sneltoetsen() {
     if (dialoogOpen()) return;
     if (ctrl && e.altKey && (e.key.toLowerCase() === 'n' || e.code === 'KeyN')) {
       e.preventDefault();
-      if (app.dataset.view !== 'schrijven') zetView('schrijven');
+      if (app.dataset.view !== 'schrijven') naarSchrijven();
       wisselNotities();
+      return;
+    }
+    if (ctrl && e.altKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA')) {
+      e.preventDefault();
+      await maakAantekening();
       return;
     }
     if (ctrl && e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) {
@@ -615,7 +840,7 @@ function sneltoetsen() {
     }
     if (ctrl && !e.altKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
-      if (app.dataset.view !== 'schrijven') zetView('schrijven');
+      if (app.dataset.view !== 'schrijven') naarSchrijven();
       const sel = String(document.getSelection() || '').trim();
       if (claude.open) claude.sluit();
       zoeken.toon(sel && sel.length < 60 && !sel.includes('\n') ? sel : '');
@@ -628,16 +853,16 @@ function sneltoetsen() {
     }
     if (ctrl && e.altKey && (e.key.toLowerCase() === 'h' || e.code === 'KeyH')) {
       e.preventDefault();
-      if (app.dataset.view === 'hoofdstukken') zetView('schrijven'); else zetView('boek', { tab: 'hoofdstukken' });
+      wissel();
       return;
     }
     if (e.key === 'Escape') {
       if (!document.getElementById('menu').hidden || document.querySelector('.rij-menu')) return;
-      if (app.dataset.view === 'hoofdstukken') { zetView('schrijven'); return; }
+      if (app.dataset.view === 'hoofdstukken') { naarSchrijven(); return; }
       if (zoeken.open) { zoeken.sluit(); return; }
       if (claude.open) { claude.sluit(); return; }
       if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#notities')) { editor.focus(); return; }
-      zetView('boek', { tab: 'overzicht' });
+      naarBoek();
       return;
     }
     if (app.dataset.view === 'schrijven' && (e.key === 'PageDown' || e.key === 'PageUp')) {
@@ -650,14 +875,15 @@ function sneltoetsen() {
   });
 }
 
-function wisselNotities(tab = null, id = null) {
+// het spiekbriefje naast de tekst open of dicht
+function wisselNotities(persoonId = null) {
   const knop = document.getElementById('knop-notities');
-  if (notities.open && !tab) {
-    notities.verberg();
+  if (spiek.open && !persoonId) {
+    spiek.verberg();
     knop.setAttribute('aria-pressed', 'false');
     editor.focus();
   } else {
-    notities.toon(tab, id);
+    spiek.toon(persoonId);
     knop.setAttribute('aria-pressed', 'true');
   }
   requestAnimationFrame(() => editor.herbereken());
@@ -736,45 +962,71 @@ async function start() {
   editor.addEventListener('pagina', () => { werkPaginanummer(); });
   editor.addEventListener('geladen', () => { werkPaginanummer(); werkKicker(); });
   editor.addEventListener('ander-hoofdstuk', (e) => anderHoofdstuk(e.detail));
-  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id), openOverzicht: () => zetView('boek', { tab: 'overzicht' }) });
-  editor.addEventListener('geladen', () => kantlijn.werkBij());
-  editor.addEventListener('typen', () => kantlijn.verberg());
+  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id), openOverzicht: () => naarBoek() });
+  editor.addEventListener('geladen', () => { kantlijn.werkBij(); markeerAantekeningen(); if (spiek && spiek.open) spiek.werkBij(); });
+  editor.addEventListener('typen', () => { kantlijn.verberg(); verbergTerugChip(); });
+  // na het typen de aantekeningen opnieuw plaatsen (alinea's kunnen verschoven zijn)
+  let nootTimer = null;
+  editor.el.addEventListener('rijk-wijziging', () => { clearTimeout(nootTimer); nootTimer = setTimeout(markeerAantekeningen, 500); });
+  let zoekSprong = false; // binnen één zoekronde is alleen de eerste treffer een stap terug
+  editor.addEventListener('typen', () => { zoekSprong = false; });
   zoeken = new Zoeken({
-    openTreffer: (id, treffer) => openSchrijven(id, { treffer }),
+    openTreffer: (id, treffer) => {
+      if (zoekSprong) { herstellen = true; try { openSchrijvenDirect(id, { treffer }); } finally { herstellen = false; } ververs(); return; }
+      zoekSprong = true;
+      openSchrijven(id, { treffer });
+    },
     voorZoeken: () => { editor.bewaar(); },
     naVervangen: () => { editor.verwerp(); editor.laad(store.meta.huidig); },
   });
   hoofdstukken = new Hoofdstukken({
     openSchrijven: (id, opties) => openSchrijven(id, opties),
-    openNotities: (tab, id) => { zetView('schrijven'); wisselNotities(tab, id); },
+    openPersoon: (id) => navigeer(() => boek.openKaart(id)),
     verwijder: (id) => verwijderMetOngedaan(id),
   });
-  notities = new Notities({
-    opWijziging: () => { if (app.dataset.view === 'hoofdstukken') hoofdstukken.render(); },
-    openMoment: (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } }),
-  });
+  const openMoment = (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } });
+  spiek = new Spiek({ openAantekening, openMoment });
   boek = new Boek({
+    hoofdstukken,
+    navigeer,
     openSchrijven: (id) => openSchrijven(id),
-    openPersonage: (id) => { zetView('schrijven'); wisselNotities('personages', id); },
+    openMoment,
+    openAantekening,
     actie: (a) => menuActie(a),
-    toonHoofdstukken: () => { hoofdstukken.toon(); hoofdstukken.focusRij(); },
-    openMoment: (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } }),
-    openHoofdstukDetail: (id) => { store.zetHuidig(id); boek.kies('hoofdstukken'); },
+    zoek: (term) => { naarSchrijven(); if (claude.open) claude.sluit(); zoeken.toon(term); },
   });
   claude = new Claude({ huidigeSelectie, voorKlaar: () => { editor.bewaar(); notitiesBewaar(); } });
   document.addEventListener('klaar-voor-claude', () => openClaude());
+  document.addEventListener('aantekening-maken', () => maakAantekening());
+  store.addEventListener('aantekeningen', () => {
+    markeerAantekeningen();
+    if (spiek.open) spiek.werkBij();
+    if (app.dataset.view === 'hoofdstukken') { if (boek.tab === 'aantekeningen') boek.aantekeningen(); else if (boek.tab === 'overzicht') boek.kopEnZij(); }
+  });
+  document.addEventListener('selectionchange', () => {
+    if (app.dataset.view !== 'schrijven') return;
+    const sel = document.getSelection();
+    if (sel && sel.rangeCount && editor.el.contains(sel.focusNode)) { werkNootBel(); ververs(); }
+  });
+  window.addEventListener('popstate', (e) => {
+    if (!e.state || dialoogOpen()) return;
+    herstellen = true;
+    try { herstel(e.state); } finally { herstellen = false; }
+  });
 
   editor.el.setAttribute('contenteditable', 'false');
   // voor de automatische tests en voor wie wil meekijken in de console
-  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, notities, hoofdstukken, zetView, zoeken, kantlijn, claude };
+  window.__schrijfmachine = { store, editor, map, db, maakSnapshot, hoofdstukken, zetView, zoeken, kantlijn, claude, boek, spiek, Notities, navigeer, naarBoek, naarSchrijven };
   if (!(await eenVenster())) return;
   editor.laad(store.meta.huidig);
   werkKicker();
   const startParams = new URLSearchParams(location.search);
-  if (startParams.get('start') !== 'schrijven') requestAnimationFrame(() => zetView('boek', { tab: 'overzicht' }));
+  if (startParams.get('start') !== 'schrijven') zetView('boek', { tab: 'overzicht' });
+  else zetView('schrijven');
+  history.replaceState(staat(), '');
 
-  document.getElementById('knop-hoofdstukken').addEventListener('click', () => zetView('hoofdstukken'));
-  document.getElementById('knop-terug').addEventListener('click', () => zetView('schrijven'));
+  document.getElementById('knop-wissel').addEventListener('click', wissel);
+  document.getElementById('terug-chip').addEventListener('click', () => { verbergTerugChip(); history.back(); });
   document.getElementById('knop-notities').addEventListener('click', () => wisselNotities());
   document.getElementById('knop-vergrendel').addEventListener('click', vergrendelKnop);
   document.getElementById('knop-ontgrendel-hier').addEventListener('click', () => {
@@ -791,7 +1043,7 @@ async function start() {
     const res = await importeerBestand(f);
     if (res) {
       editor.laad(store.meta.huidig, { naarEinde: false });
-      zetView('boek', { tab: 'hoofdstukken' });
+      naarBoek();
       toonMelding(res.aantal + (res.aantal === 1 ? ' hoofdstuk' : ' hoofdstukken') + ' geïmporteerd', 6000);
     }
   });
@@ -814,9 +1066,9 @@ async function start() {
   store.addEventListener('vervangen', () => {
     editor.verwerp();
     editor.laad(store.meta.huidig, { naarEinde: false });
-    notities.verwerp();
-    if (notities.open) notities.render();
-    if (app.dataset.view === 'hoofdstukken') hoofdstukken.render();
+    Notities.verwerpAlle();
+    if (spiek.open) spiek.toonOverzicht();
+    if (app.dataset.view === 'hoofdstukken') boek.render();
     werkKicker();
   });
   store.addEventListener('fout', () => toonMelding('Opslaan op dit apparaat lukte even niet; ik probeer het opnieuw'));
@@ -858,7 +1110,7 @@ async function start() {
     else await verwerkMapResultaat(res);
   }
   werkStatus();
-  if (app.dataset.view === 'hoofdstukken' && boek.tab !== 'hoofdstukken') boek.render();
+  if (app.dataset.view === 'hoofdstukken') boek.render();
   setInterval(werkStatus, 30000);
 }
 

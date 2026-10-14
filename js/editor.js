@@ -128,6 +128,22 @@ export class Editor extends EventTarget {
     }
   }
 
+  // Een Range rond een stuk tekst in een blok (voor het markeren van aantekeningen)
+  bereik(blokIndex, start, lengte) {
+    const blok = this.el.children[blokIndex];
+    const r = document.createRange();
+    if (!blok) return r;
+    const w = document.createTreeWalker(blok, NodeFilter.SHOW_TEXT);
+    let n, gezien = 0, begin = false;
+    while ((n = w.nextNode())) {
+      if (!begin && gezien + n.length >= start) { r.setStart(n, start - gezien); begin = true; }
+      if (begin && gezien + n.length >= start + lengte) { r.setEnd(n, start + lengte - gezien); return r; }
+      gezien += n.length;
+    }
+    if (!begin) r.selectNodeContents(blok); else r.setEndAfter(blok.lastChild || blok);
+    return r;
+  }
+
   wisMarkering() {
     if (window.CSS && CSS.highlights) CSS.highlights.delete('zoektreffer');
   }

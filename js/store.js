@@ -66,6 +66,7 @@ export function maakHoofdstuk(id, titel, velden = {}) {
     samenvatting: '',
     status: 'Concept',
     doel: '',
+    aantekeningen: [],  // [{ id, blok, teken, anker, tekst, klaar, tijd }]: los van de tekst, gaan niet mee in de export
     md: '',
     woorden: 0,
     gewijzigd: Date.now(),
@@ -324,6 +325,30 @@ class Store extends EventTarget {
     this._gewijzigd();
   }
 
+  // ---------- aantekeningen in de tekst ----------
+  aantekeningen(id) { const h = this.hoofdstuk(id); return (h && h.aantekeningen) || []; }
+  alleAantekeningen() { return this.lijst().flatMap((h) => (h.aantekeningen || []).map((a) => ({ h, a }))); }
+  _zetAantekeningen(id, lijst) {
+    const h = this.hoofdstuk(id);
+    if (!h) return;
+    h.aantekeningen = lijst;
+    this._hoofdstuk(id);
+    this._meta();
+    this._gewijzigd();
+    this.dispatchEvent(new CustomEvent('aantekeningen'));
+  }
+  nieuweAantekening(id, velden) {
+    const a = { id: nieuwId(), blok: 0, teken: 0, anker: '', tekst: '', klaar: false, tijd: Date.now(), ...velden };
+    this._zetAantekeningen(id, [...this.aantekeningen(id), a]);
+    return a;
+  }
+  wijzigAantekening(id, aId, velden) {
+    this._zetAantekeningen(id, this.aantekeningen(id).map((a) => (a.id === aId ? { ...a, ...velden } : a)));
+  }
+  verwijderAantekening(id, aId) {
+    this._zetAantekeningen(id, this.aantekeningen(id).filter((a) => a.id !== aId));
+  }
+
   zetHuidig(id) {
     if (this.project.meta.huidig === id || !this.hoofdstuk(id)) return;
     this.project.meta.huidig = id;
@@ -469,7 +494,7 @@ class Store extends EventTarget {
       projectId: p.meta.projectId,
       titel: p.meta.titel,
       bijgewerkt: new Date().toISOString(),
-      hoofdstukken: this.lijst().map((h) => ({ id: h.id, bestand: h.bestand, titel: h.titel, lijn: h.lijn, status: h.status, doel: h.doel, samenvatting: h.samenvatting || '', los: h.los ?? null })),
+      hoofdstukken: this.lijst().map((h) => ({ id: h.id, bestand: h.bestand, titel: h.titel, lijn: h.lijn, status: h.status, doel: h.doel, samenvatting: h.samenvatting || '', los: h.los ?? null, aantekeningen: h.aantekeningen && h.aantekeningen.length ? h.aantekeningen : undefined })),
       vergrendeld: p.meta.vergrendeld,
       vergrendelPagina: p.meta.vergrendelPagina,
       huidig: p.meta.huidig,
@@ -568,6 +593,7 @@ export function bestandenNaarProject(json, hoofdstukTeksten, notitieTeksten, oud
     }
     hoofdstukken[h.id] = maakHoofdstuk(h.id, titel, {
       bestand: h.bestand, lijn: h.lijn || null, status: h.status || 'Concept', doel: h.doel || '', samenvatting: h.samenvatting || '', los: h.los ?? null, md, woorden: countWords(md),
+      aantekeningen: Array.isArray(h.aantekeningen) ? h.aantekeningen : (oudProject && oudProject.hoofdstukken[h.id] ? oudProject.hoofdstukken[h.id].aantekeningen || [] : []),
     });
     volgorde.push(h.id);
   }

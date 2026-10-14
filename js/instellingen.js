@@ -1,7 +1,7 @@
 // Instellingen per apparaat (avondstand, volledig scherm, slimme aanhalingstekens).
 // Klein en niet kritiek, dus in localStorage; als dat niet lukt gelden de standaardwaarden.
 
-export const VERSIE = 6;
+export const VERSIE = 7;
 
 const STANDAARD = {
   avond: 'uit',          // uit | aan | auto (van 20:00 tot 7:00)

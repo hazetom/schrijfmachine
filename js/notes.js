@@ -1,4 +1,4 @@
-// Zijpaneel met notities: Personages, Verhaallijnen en Ideeën.
+// Notities: personagekaarten, verhaallijnen en ideeën, als lijst met een kaart ernaast.
 
 import { store, TABS, KLEUREN } from './store.js';
 import { el, dialoog } from './ui.js';
@@ -7,42 +7,47 @@ import { mdToHtml, domToMd } from './markdown.js';
 import { tijdlijn } from './personages.js';
 import { personageVerzoek, naarKlembord } from './claude.js';
 
+// Een notitieblok (lijst + kaart) in een eigen vak. Wordt gebruikt voor de personagekaarten
+// in Boek, voor Ideeën en Verhaallijnen bij Aantekeningen, en voor een kaart in het spiekbriefje.
 export class Notities {
-  constructor({ opWijziging, openMoment }) {
+  static alle = [];
+  static bewaarAlle() { for (const n of Notities.alle) n.bewaar(); }
+  static verwerpAlle() { for (const n of Notities.alle) n.verwerp(); }
+
+  constructor({ root, tabs = ['personages', 'verhaallijnen', 'ideeen'], opWijziging, openMoment, zonderLijst = false }) {
+    Notities.alle.push(this);
     this.openMoment = openMoment || (() => {});
-    this.paneel = document.getElementById('notities');
-    this.tabsEl = document.getElementById('notitie-tabs');
-    this.lijstEl = document.getElementById('notitie-lijst');
-    this.detailEl = document.getElementById('notitie-detail');
-    this.tab = 'personages';
+    this.tabs = TABS.filter((t) => tabs.includes(t.key));
+    this.root = root;
+    root.classList.add('notitieblok');
+    if (zonderLijst) root.classList.add('zonder-lijst');
+    this.tabsEl = el('nav', { class: 'tabs', 'aria-label': 'Soort notitie' });
+    this.lijstEl = el('div', { class: 'notitie-lijst' });
+    this.detailEl = el('div', { class: 'notitie-detail' });
+    if (this.tabs.length < 2) this.tabsEl.hidden = true;
+    root.append(this.tabsEl, this.lijstEl, this.detailEl);
+    this.tab = this.tabs[0].key;
     this.gekozen = {};
     this.bewaarTimer = null;
     this.tekstVeld = null;
     this.opWijziging = opWijziging || (() => {});
-    this.renderTabs();
   }
 
-  get open() { return !this.paneel.hidden; }
+  get open() { return this.root.isConnected && !!this.root.offsetParent; }
 
   toon(tab = null, id = null) {
-    if (tab) this.tab = tab;
+    if (tab && this.tabs.some((t) => t.key === tab)) this.tab = tab;
     if (tab && id) this.gekozen[tab] = id;
-    this.paneel.hidden = false;
-    this.paneel.closest('.schrijfvlak').classList.add('met-notities');
     this.render();
   }
 
-  verberg() {
-    this.bewaar();
-    this.paneel.hidden = true;
-    this.paneel.closest('.schrijfvlak').classList.remove('met-notities');
-  }
+  kies(id) { this.toon(this.tab, id); }
 
   renderTabs() {
     this.tabsEl.innerHTML = '';
     this.tabsEl.setAttribute('role', 'tablist');
-    for (const t of TABS) {
-      const b = el('button', { class: 'knop', role: 'tab', 'aria-selected': t.key === this.tab ? 'true' : 'false', text: t.label });
+    for (const t of this.tabs) {
+      const b = el('button', { class: 'knop', role: 'tab', 'data-notitietab': t.key, 'aria-selected': t.key === this.tab ? 'true' : 'false', text: t.label });
       b.addEventListener('click', () => { this.bewaar(); this.tab = t.key; this.render(); });
       this.tabsEl.appendChild(b);
     }
@@ -71,7 +76,7 @@ export class Notities {
         this.tab !== 'ideeen' ? el('span', { class: 'vlak' + (it.kleur ? '' : ' leeg'), 'aria-hidden': 'true', style: { backgroundColor: it.kleur || 'transparent' } }) : null,
         el('span', { class: 'naam', text: it.naam || 'Zonder naam' }),
         it.sub ? el('span', { class: 'sub', text: it.sub }) : null);
-      rij.addEventListener('click', () => { this.bewaar(); this.gekozen[this.tab] = it.id; this.renderLijst(); this.renderDetail(); });
+      rij.addEventListener('click', () => { this.bewaar(); this.gekozen[this.tab] = it.id; this.renderLijst(); this.renderDetail(); this.opWijziging('gekozen'); });
       this.lijstEl.appendChild(rij);
     }
     const nieuw = el('button', { class: 'knop notitie-nieuw', text: '+ Nieuw ' + t.enkel });

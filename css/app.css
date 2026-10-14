@@ -49,6 +49,7 @@
   --groen: #6E7F5E;
   --korrel: rgba(40, 38, 34, 0.045);
   --selectie: rgba(79, 106, 126, 0.22);
+  --noot: rgba(168, 138, 78, 0.24);
   --tekstgrootte: clamp(18px, calc(0.9vw + 9.5px), 23px);
   --regel: 1.8;
   --kolom: min(30.5em, calc(100vw - 200px));
@@ -72,6 +73,7 @@
   --groen: #8E9F7B;
   --korrel: rgba(255, 248, 235, 0.025);
   --selectie: rgba(134, 160, 179, 0.28);
+  --noot: rgba(200, 170, 110, 0.26);
   color-scheme: dark;
 }
 
@@ -108,7 +110,7 @@ a:hover { color: var(--inkt); }
   padding: 12px 32px 0 40px; font-size: 13px; letter-spacing: 0.06em; color: var(--grijs);
   flex: none; min-height: 56px;
 }
-.kicker { text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45vw; }
+.kicker { text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; min-width: 0; }
 .nav { display: flex; gap: 4px; font-size: 13px; letter-spacing: 0.02em; align-items: center; }
 .knop {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 44px;
@@ -484,3 +486,96 @@ a:hover { color: var(--inkt); }
 .hs-rij:hover .rij-menu-knop, .hs-rij[aria-current="true"] .rij-menu-knop, .rij-menu-knop:focus-visible { opacity: 1; }
 .rij-menu { position: fixed; z-index: 45; }
 .status.ongedaan #status-tekst { color: var(--blauw); text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---------- v7: twee plekken, terug, aantekeningen, spiekbriefje ---------- */
+.kruim { border: 0; background: transparent; padding: 6px 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--grijs); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+button.kruim:hover { color: var(--inkt); text-decoration: underline; text-underline-offset: 4px; }
+span.kruim { cursor: default; }
+.kruim-pijl { color: var(--verbleekt); }
+.kicker { gap: 8px; }
+.knop.wissel { color: var(--inkt); }
+#app[data-view="hoofdstukken"] .knop.wissel svg.alleen-schrijven, #app[data-view="schrijven"] .knop.wissel svg.alleen-hoofdstukken { display: none; }
+
+.terug-chip { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 30; border: 1px solid var(--inkt); background: var(--papier); color: var(--inkt); font: inherit; font-size: 14px; padding: 8px 16px; cursor: pointer; }
+.terug-chip:hover { background: var(--tint); }
+#app[data-view="schrijven"] .terug-chip { bottom: 58px; }
+
+::highlight(aantekening) { background-color: var(--noot); }
+.noot-bel { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); z-index: 31; display: flex; width: max-content; align-items: center; gap: 6px 12px; flex-wrap: wrap;
+  max-width: min(680px, calc(100vw - 32px)); padding: 8px 14px; background: var(--papier); border: 1px solid var(--oker); font-size: 14px; color: var(--inkt); }
+.noot-bel .noot-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); }
+.noot-bel .noot-tekst { flex: 1 1 200px; }
+.noot-bel .knop { min-height: 32px; font-size: 13px; }
+
+/* Boek > Overzicht: één lijst met hoofdstukken */
+.ov-hoofd { min-width: 0; }
+.ov-lijstkop { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: 28px; border-bottom: 1px solid var(--lijn); margin-bottom: 4px; }
+.ov-lijstkop .ov-blok-titel { border: 0; margin: 0; padding-bottom: 8px; }
+.ov-filter { font: inherit; font-size: 13px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 4px 6px; margin-bottom: 6px; }
+#boek-overzicht .hs-lijst { overflow: visible; }
+.hs-rij.gedimd { opacity: 0.35; }
+.hs-rij.huidig .hs-titel::after { content: '  · hier ben je'; font-size: 12px; color: var(--grijs); letter-spacing: 0.02em; }
+.hs-uitklap { list-style: none; padding: 4px 14px 22px 58px; border-bottom: 1px solid var(--lijn); background: var(--tint-licht); }
+.hs-uitklap .hs-detail { overflow: visible; padding-bottom: 0; gap: 14px; }
+.hs-uitklap .hs-detail .titelveld { font-size: 24px; }
+.ov-zij .hs-slotbalk { flex-wrap: wrap; border: 0; min-height: 0; padding: 0 0 18px; font-size: 14px; }
+.ov-zij .hs-slotbalk .links { flex-wrap: wrap; }
+.ov-zij > div + .ov-blok-titel, .ov-zij .ov-blok-titel { margin-top: 4px; }
+.ov-ant { list-style: none; padding: 0 !important; margin: 0 0 18px !important; }
+
+/* aantekeningen */
+.ant-rij { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--lijn); }
+.ant-rij input { margin-top: 6px; }
+.ant-tekst { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; text-align: left; border: 0; background: transparent; padding: 2px 0; cursor: pointer; font-size: 15px; color: var(--inkt); line-height: 1.45; min-width: 0; }
+.ant-tekst:hover > span:first-child { text-decoration: underline; text-underline-offset: 3px; }
+.ant-waar { font-size: 13px; color: var(--grijs); font-style: italic; }
+.ant-rij.klaar .ant-tekst > span:first-child { text-decoration: line-through; color: var(--grijs); }
+.ant-rij .knop { min-height: 32px; font-size: 13px; }
+.ant-hoofdstuk { margin: 18px 0 2px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--grijs-donker); }
+.ant-klaar { margin-top: 22px; font-size: 14px; color: var(--grijs); }
+.ant-klaar summary { cursor: pointer; padding: 6px 0; }
+.ant-raster { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 64px; max-width: 1240px; }
+
+/* notitieblokken (kaarten, ideeën, verhaallijnen) */
+.notitieblok { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.notitieblok.zonder-lijst .notitie-lijst { display: none; }
+.boek .notitieblok { display: grid; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); gap: 16px 40px; max-width: 1100px; align-items: start; }
+.boek .notitieblok .tabs { grid-column: 1 / -1; }
+.boek .notitie-lijst { max-height: none; }
+.boek .notitie-detail { border-top: 0; padding-top: 0; }
+.boek .tijdlijn { max-height: none; }
+.boek .notitie-tekst { min-height: 120px; }
+.ant-raster .notitieblok { grid-template-columns: minmax(150px, 200px) minmax(0, 1fr); }
+
+/* personages */
+.pers-kaarten-titel { margin-top: 32px; }
+.pers-blok { margin-top: 32px; max-width: 1000px; }
+.pers-blok .uitleg { font-size: 13px; color: var(--grijs); margin: 0 0 8px; }
+.pers-blok.namen summary { cursor: pointer; }
+.namen-bulk { display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--grijs-donker); padding: 4px 0 8px; }
+.voorstel .hoortbij { font: inherit; font-size: 13px; background: transparent; color: var(--inkt); border: 1px solid var(--lijn); padding: 4px 6px; width: 150px; }
+.voorstel .knop.gok { color: var(--inkt); text-decoration: underline; text-underline-offset: 3px; }
+.raster td.laatst, .raster th.laatst { width: auto; border-left: 1px solid var(--lijn); padding: 0 0 0 12px; text-align: left; white-space: nowrap; color: var(--grijs); font-size: 12px; }
+.raster tr.gekozen th button { text-decoration: underline; text-underline-offset: 4px; }
+
+/* spiekbriefje */
+.notitie-tekst { position: relative; }
+.ov-zij .hs-slotbalk select { max-width: 150px; }
+.notities .spiek { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; padding-bottom: 24px; }
+.notities .spiek-kaart { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; }
+.notities .spiek-kaart .notitieblok { flex: 1 1 auto; overflow-y: auto; }
+.spiek-terug { align-self: flex-start; font-size: 13px; }
+.spiek-kop { margin: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); }
+.spiek-titel { margin: -8px 0 0; font-size: 22px; font-weight: 400; }
+.spiek-blok { border-top: 1px solid var(--lijn); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; line-height: 1.55; }
+.spiek-blok p { margin: 0; }
+.spiek-blok .label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); }
+.spiek-blok textarea { font: inherit; font-size: 15px; background: transparent; border: 0; resize: none; color: var(--inkt); padding: 0; line-height: 1.55; }
+.spiek-blok textarea.spiek-idee { border: 1px solid var(--lijn); padding: 6px 8px; }
+.spiek-blok .ant-tekst { font-size: 14px; }
+
+@media (max-width: 1100px) {
+  .boek-tabs, .boek-paneel { padding-left: 32px; padding-right: 32px; }
+  .ov, .ant-raster { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .hs-uitklap { padding-left: 24px; }
+}
