@@ -14,10 +14,11 @@ import { Kantlijn } from './kantlijn.js';
 import { Zoeken } from './zoeken.js';
 import { lees, zet, pasThemaToe, instellingen, VERSIE } from './instellingen.js';
 import { Claude } from './claude.js';
+import { Boek } from './boek.js';
 import { blokVan } from './richtext.js';
 
 const app = document.getElementById('app');
-let editor, hoofdstukken, notities, kantlijn, zoeken, claude;
+let editor, hoofdstukken, notities, kantlijn, zoeken, claude, boek;
 let swRegistratie = null;
 let updateKlaar = false;
 let bijwerkenGevraagd = false;
@@ -25,15 +26,17 @@ let melding = null;
 let meldingTimer = null;
 
 // ---------- weergave ----------
-function zetView(view, { focus = true } = {}) {
-  if (view === 'hoofdstukken') {
+function zetView(view, { focus = true, tab = null } = {}) {
+  if (view === 'hoofdstukken' || view === 'boek') {
     editor.bewaar();
     notitiesBewaar();
+    if (zoeken && zoeken.open) zoeken.sluit();
+    if (claude && claude.open) claude.sluit();
     app.dataset.view = 'hoofdstukken';
     document.getElementById('view-schrijven').hidden = true;
     document.getElementById('view-hoofdstukken').hidden = false;
-    hoofdstukken.toon();
-    hoofdstukken.focusRij();
+    boek.kies(tab || (view === 'hoofdstukken' && !tab ? boek.tab : 'overzicht'));
+    if (boek.tab === 'overzicht') { const v = document.getElementById('ov-verder'); if (v) v.focus(); }
   } else {
     app.dataset.view = 'schrijven';
     document.getElementById('view-hoofdstukken').hidden = true;
@@ -51,7 +54,7 @@ function werkKicker() {
   const k = document.getElementById('kicker');
   k.innerHTML = '';
   if (app.dataset.view === 'hoofdstukken') {
-    k.textContent = (store.meta.titel || 'Manuscript') + ' · Hoofdstukken';
+    k.textContent = store.meta.titel || 'Je boek';
   } else {
     const h = store.huidig();
     if (h) {
@@ -80,6 +83,37 @@ function openSchrijven(id, opties = null) {
     editor.laad(id, opties || {});
   }
   zetView('schrijven', { focus: !(opties && opties.treffer && opties.treffer.focus === false) });
+}
+
+// Snel verwijderen uit de lijst: meteen weg, tien seconden "Ongedaan maken", en altijd nog in Versies en de Prullenbak.
+function verwijderMetOngedaan(id) {
+  editor.bewaar();
+  const dl = store.deel(id);
+  if (dl) {
+    const kopie = { ...dl };
+    const index = store.delen().indexOf(dl);
+    store.verwijderDeel(id);
+    toonOngedaan('Deel "' + (dl.titel || 'Zonder titel') + '" verwijderd', () => {
+      store.project.meta.delen.splice(index, 0, kopie);
+      store.wijzigDeel(kopie.id, {});
+      hoofdstukken.render();
+    });
+    return;
+  }
+  const h = store.hoofdstuk(id);
+  const v = store.meta.volgorde;
+  if (!h || v.length <= 1) return;
+  maakSnapshot('vlak voor verwijderen van "' + (h.titel || 'Zonder titel') + '"').catch(() => {});
+  const index = v.indexOf(id);
+  const delenIds = store.delen().filter((d) => d.voor === id).map((d) => d.id);
+  const kopie = { ...h };
+  const wasHuidig = store.meta.huidig === id;
+  store.verwijderHoofdstuk(id);
+  if (wasHuidig) { editor.verwerp(); editor.laad(store.meta.huidig); }
+  toonOngedaan('"' + (h.titel || 'Zonder titel') + '" verwijderd', () => {
+    store.herstelHoofdstuk(kopie, index, delenIds);
+    if (app.dataset.view === 'hoofdstukken') { hoofdstukken.gekozen = kopie.id; boek.render(); if (boek.tab === 'hoofdstukken') hoofdstukken.render(); }
+  });
 }
 
 // Welke alinea's zijn geselecteerd? Voor "Klaar voor Claude".
@@ -143,8 +177,10 @@ function werkStatus() {
   const lokaal = store.lokaalOpgeslagen ? tijd(store.lokaalOpgeslagen) : null;
   let t, kleur;
   knop.classList.remove('update');
+  knop.classList.remove('ongedaan');
   if (melding) {
-    t = melding; kleur = 'oker';
+    t = typeof melding === 'string' ? melding : melding.tekst; kleur = 'oker';
+    if (melding.actie) knop.classList.add('ongedaan');
   } else if (updateKlaar && (m.status === 'verbonden' || m.status === 'geen')) {
     t = 'Nieuwe versie klaar · klik om bij te werken';
     kleur = 'groen';
@@ -178,7 +214,12 @@ function toonMelding(t, ms = 12000) {
   meldingTimer = setTimeout(() => { melding = null; werkStatus(); }, ms);
 }
 
+function toonOngedaan(tekst, terug) {
+  toonMelding({ tekst: tekst + ' · Ongedaan maken', actie: terug }, 10000);
+}
+
 async function statusKlik() {
+  if (melding && melding.actie) { const a = melding.actie; melding = null; werkStatus(); a(); return; }
   if (updateKlaar && !melding) { await bijwerken(); return; }
   const m = map.mapInfo();
   if (m.status === 'toestemming') { await opnieuwKoppelen(); return; }
@@ -331,6 +372,7 @@ async function menuActie(actie) {
     await versiesDialoog();
   } else if (actie === 'map') {
     await kiesMapInteractief();
+    if (app.dataset.view === 'hoofdstukken') boek.render();
   } else if (actie === 'nu-opslaan') {
     await nuOpslaan();
   } else if (actie === 'controle') {
@@ -341,6 +383,9 @@ async function menuActie(actie) {
     if (t !== null) { store.zetTitel(t); werkKicker(); }
   } else if (actie === 'hulp') {
     hulp();
+  } else if (actie === 'koppel') {
+    await opnieuwKoppelen();
+    if (app.dataset.view === 'hoofdstukken') boek.render();
   } else if (actie === 'claude') {
     openClaude();
   } else if (actie === 'zoeken') {
@@ -528,7 +573,7 @@ function hulp() {
       rij('Ctrl + Alt + N', 'Notities open/dicht'),
       rij('Ctrl + Alt + H', 'Hoofdstukken'),
       rij('Ctrl + S', 'Nu opslaan (gebeurt ook vanzelf)'),
-      rij('Esc', 'Terug naar schrijven'),
+      rij('Esc', 'Wisselen tussen schrijven en het overzicht van je boek'),
     ), el('p', { class: 'klein', text: 'Bladeren kan ook door in de lege rand naast de tekst te klikken. Ga je met de muis naar links, dan zie je je hoofdstukken en het scènedoel. In volledig scherm: houd Esc even ingedrukt om eruit te gaan.' })],
     knoppen: [{ tekst: 'Klaar', waarde: null, hoofd: true }],
   });
@@ -583,13 +628,17 @@ function sneltoetsen() {
     }
     if (ctrl && e.altKey && (e.key.toLowerCase() === 'h' || e.code === 'KeyH')) {
       e.preventDefault();
-      zetView(app.dataset.view === 'hoofdstukken' ? 'schrijven' : 'hoofdstukken');
+      if (app.dataset.view === 'hoofdstukken') zetView('schrijven'); else zetView('boek', { tab: 'hoofdstukken' });
       return;
     }
     if (e.key === 'Escape') {
-      if (!document.getElementById('menu').hidden) return;
+      if (!document.getElementById('menu').hidden || document.querySelector('.rij-menu')) return;
       if (app.dataset.view === 'hoofdstukken') { zetView('schrijven'); return; }
+      if (zoeken.open) { zoeken.sluit(); return; }
+      if (claude.open) { claude.sluit(); return; }
       if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#notities')) { editor.focus(); return; }
+      zetView('boek', { tab: 'overzicht' });
+      return;
     }
     if (app.dataset.view === 'schrijven' && (e.key === 'PageDown' || e.key === 'PageUp')) {
       const a = document.activeElement;
@@ -687,7 +736,7 @@ async function start() {
   editor.addEventListener('pagina', () => { werkPaginanummer(); });
   editor.addEventListener('geladen', () => { werkPaginanummer(); werkKicker(); });
   editor.addEventListener('ander-hoofdstuk', (e) => anderHoofdstuk(e.detail));
-  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id), openOverzicht: () => zetView('hoofdstukken') });
+  kantlijn = new Kantlijn({ openHoofdstuk: (id) => openSchrijven(id), openOverzicht: () => zetView('boek', { tab: 'overzicht' }) });
   editor.addEventListener('geladen', () => kantlijn.werkBij());
   editor.addEventListener('typen', () => kantlijn.verberg());
   zoeken = new Zoeken({
@@ -698,10 +747,19 @@ async function start() {
   hoofdstukken = new Hoofdstukken({
     openSchrijven: (id, opties) => openSchrijven(id, opties),
     openNotities: (tab, id) => { zetView('schrijven'); wisselNotities(tab, id); },
+    verwijder: (id) => verwijderMetOngedaan(id),
   });
   notities = new Notities({
     opWijziging: () => { if (app.dataset.view === 'hoofdstukken') hoofdstukken.render(); },
     openMoment: (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } }),
+  });
+  boek = new Boek({
+    openSchrijven: (id) => openSchrijven(id),
+    openPersonage: (id) => { zetView('schrijven'); wisselNotities('personages', id); },
+    actie: (a) => menuActie(a),
+    toonHoofdstukken: () => { hoofdstukken.toon(); hoofdstukken.focusRij(); },
+    openMoment: (id, m) => openSchrijven(id, { treffer: { blok: m.blok, start: m.start, lengte: m.lengte } }),
+    openHoofdstukDetail: (id) => { store.zetHuidig(id); boek.kies('hoofdstukken'); },
   });
   claude = new Claude({ huidigeSelectie, voorKlaar: () => { editor.bewaar(); notitiesBewaar(); } });
   document.addEventListener('klaar-voor-claude', () => openClaude());
@@ -712,6 +770,8 @@ async function start() {
   if (!(await eenVenster())) return;
   editor.laad(store.meta.huidig);
   werkKicker();
+  const startParams = new URLSearchParams(location.search);
+  if (startParams.get('start') !== 'schrijven') requestAnimationFrame(() => zetView('boek', { tab: 'overzicht' }));
 
   document.getElementById('knop-hoofdstukken').addEventListener('click', () => zetView('hoofdstukken'));
   document.getElementById('knop-terug').addEventListener('click', () => zetView('schrijven'));
@@ -731,13 +791,22 @@ async function start() {
     const res = await importeerBestand(f);
     if (res) {
       editor.laad(store.meta.huidig, { naarEinde: false });
-      zetView('hoofdstukken');
+      zetView('boek', { tab: 'hoofdstukken' });
       toonMelding(res.aantal + (res.aantal === 1 ? ' hoofdstuk' : ' hoofdstukken') + ' geïmporteerd', 6000);
     }
   });
   menu();
   sneltoetsen();
   volledigSchermBijStart();
+  // map weer koppelen bij je eerste toets of klik (Chrome vraagt dan één keer toestemming)
+  const koppelBijGebaar = () => {
+    if (map.mapInfo().status !== 'toestemming') return;
+    window.removeEventListener('keydown', koppelBijGebaar, true);
+    window.removeEventListener('pointerdown', koppelBijGebaar, true);
+    opnieuwKoppelen();
+  };
+  window.addEventListener('keydown', koppelBijGebaar, true);
+  window.addEventListener('pointerdown', koppelBijGebaar, true);
 
   store.addEventListener('lokaal-opgeslagen', werkStatus);
   store.addEventListener('vergrendeling', () => { editor.pasVergrendelingToe(); werkKicker(); });
@@ -789,6 +858,7 @@ async function start() {
     else await verwerkMapResultaat(res);
   }
   werkStatus();
+  if (app.dataset.view === 'hoofdstukken' && boek.tab !== 'hoofdstukken') boek.render();
   setInterval(werkStatus, 30000);
 }
 

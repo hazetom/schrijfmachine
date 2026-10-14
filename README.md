@@ -23,7 +23,7 @@ Deze repo bevat alleen de code. Je manuscript staat in je eigen map (Google Driv
 3. Chrome vraagt of de app in die map mag schrijven. Kies **Bij elk bezoek toestaan** als die keuze er staat, anders **Toestaan**.
 4. Klaar. Rechtsonder staat nu "Opgeslagen in Manuscript · 23:14".
 
-Vraagt Chrome later opnieuw om toestemming (bijvoorbeeld na een herstart), dan staat er rechtsonder "klik om je map weer te koppelen". Eén klik en hij doet het weer. Tot die tijd wordt alles gewoon op de Chromebook bewaard.
+Vraagt Chrome later opnieuw om toestemming (bijvoorbeeld na een herstart), dan vraagt de app dat zelf bij je eerste toets of klik. Eén keer **Toestaan** en hij doet het weer. Tot die tijd wordt alles gewoon op de Chromebook bewaard.
 
 Later een andere map kiezen kan via **Meer > Map**.
 
@@ -34,6 +34,26 @@ Later een andere map kiezen kan via **Meer > Map**.
 3. Je krijgt een voorstel: welke regels een nieuw hoofdstuk beginnen ("Proloog", "Act 1 – De moeder") en welke een kopje zijn ("Santorini, Griekenland - 2003"). Pas aan wat niet klopt en klik **Importeer**.
 
 Vet en cursief blijven behouden. Werkt ook met `.md` en `.txt`.
+
+---
+
+## Het boek: waar je binnenkomt
+
+De app opent op het **Overzicht**: de titel van je boek, een grote knop **Verder schrijven** (of gewoon Enter) die je terugbrengt op de plek waar je was, de opbouw van het boek, en rechts wat er nog te bekijken is, zoals nieuwe namen die de app in je tekst vond. Bovenin staan de tabbladen:
+
+- **Overzicht:** zie hierboven.
+- **Hoofdstukken:** de volgorde, delen, status, verhaallijn, scènedoel en samenvatting per hoofdstuk.
+- **Personages:** een raster met iedereen tegen alle hoofdstukken. Hoe groter de stip, hoe vaker die persoon er genoemd wordt. Klik op een stip voor de zinnen zelf; klik daarop en je zit in de tekst. Onderaan staan de nieuwe namen uit het hele boek.
+- **Verhaallijnen:** hetzelfde raster per verhaallijn, zodat je ziet waar een lijn stilvalt.
+- **Instellingen:** map, versies, exporteren, importeren, titel, avondstand en meer.
+
+**Esc** wisselt tussen schrijven en het overzicht.
+
+### Snel bewerken in de lijst
+
+Achter elk hoofdstuk staat **···**: openen, hernoemen, nieuw hoofdstuk hierna, nieuw deel vanaf hier, omhoog, omlaag, vergrendelen, verwijderen. Bij een deel: hernoemen, nieuw hoofdstuk in dit deel, deel verwijderen. Slepen kan ook nog.
+
+**Verwijderen** vraagt niets, maar rechtsonder staat tien seconden **Ongedaan maken**. Daarna is het nog steeds niet weg: er is vooraf een versie gemaakt (**Versies terugzetten**) en het bestand staat in `Prullenbak/` in je map. Een geselecteerd hoofdstuk kun je ook met de Delete-toets weghalen.
 
 ---
 
@@ -71,7 +91,7 @@ De Markdown is gewoon leesbaar: `**vet**`, `*cursief*`, `## Kopje` en `* * *` vo
 
 ## Delen (acts)
 
-In **Hoofdstukken** maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren · De moeder". In de export krijgt elk deel een eigen pagina.
+Bij **Hoofdstukken** maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren · De moeder". In de export krijgt elk deel een eigen pagina.
 
 ## Nummering
 
@@ -92,18 +112,20 @@ Selecteer een stuk tekst (of niets) en klik in het balkje op **CLAUDE**, of druk
 
 ## Personages herkennen
 
-In het hoofdstukkenscherm staat per hoofdstuk wie erin voorkomt en welke namen de app nog niet kent ("Volgens mij komen ook voor"). Per naam kies je **Personage**, **Is dezelfde als…** (voor een bijnaam of een andere schrijfwijze), **Plaats** of **Negeren**.
+Bij **Hoofdstukken** staat per hoofdstuk wie erin voorkomt en welke namen de app nog niet kent ("Volgens mij komen ook voor"). Per naam kies je **Personage**, **Is dezelfde als…** (voor een bijnaam of een andere schrijfwijze), **Plaats** of **Negeren**.
 
 Een bevestigd personage is overal dezelfde persoon: "Frank Philips" maakt ook elke losse "Frank" en "Philips" tot dezelfde Frank, en wat je toevoegt bij **Ook genoemd als** (op de personagekaart) telt ook mee. Op de kaart zie je onder **Komt voor in** per hoofdstuk de zinnen waarin hij of zij genoemd wordt; een klik brengt je erheen. Met **Klaar voor Claude** op de kaart gaan precies die passages mee om de kaart te laten bijwerken.
+
+Bij **Personages** zie je dat voor het hele boek in één raster.
 
 Dit gaat zonder AI, dus "hij" en "zij" telt de app niet, en een rol zonder naam ("de ober") vindt hij pas als je die zelf als personage aanmaakt.
 
 ## Tijdens het schrijven
 
-- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (terug naar het hoofdstukkenscherm), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
+- **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (terug naar het overzicht van je boek), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
 - **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
 - **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
-- **Scènes.** De kopjes in een hoofdstuk staan in het hoofdstukkenscherm onder het scènedoel; een klik brengt je erheen.
+- **Scènes.** De kopjes in een hoofdstuk staan bij **Hoofdstukken** onder het scènedoel; een klik brengt je erheen.
 
 ## Instellingen (Meer > Instellingen)
 
@@ -130,11 +152,12 @@ Elke export krijgt de datum en tijd in de naam, zodat een eerdere export nooit w
 | Ctrl+F | Zoeken en vervangen (of A12: naar alinea 12) |
 | Ctrl+Alt+C | Klaar voor Claude |
 | Ctrl+Alt+N | Notities open/dicht |
-| Ctrl+Alt+H | Hoofdstukken |
+| Ctrl+Alt+H | Boek > Hoofdstukken |
 | Ctrl+S | Nu opslaan (gebeurt ook vanzelf) |
-| Esc | Terug naar schrijven |
+| Esc | Tussen schrijven en het overzicht |
+| Delete (in de lijst) | Hoofdstuk verwijderen, met Ongedaan maken |
 
-Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP en SCÈNE.
+Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE en CLAUDE.
 
 ---
 

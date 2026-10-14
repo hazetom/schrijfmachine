@@ -283,6 +283,20 @@ class Store extends EventTarget {
     return true;
   }
 
+  // Terugzetten na "Ongedaan maken": op dezelfde plek, met de delen die ervoor stonden.
+  herstelHoofdstuk(h, index, delenIds = []) {
+    const v = this.project.meta.volgorde;
+    if (this.project.hoofdstukken[h.id]) return;
+    this.project.hoofdstukken[h.id] = { ...h };
+    v.splice(Math.min(index, v.length), 0, h.id);
+    for (const d of this.delen()) if (delenIds.includes(d.id)) d.voor = h.id;
+    this.idbVuil.verwijderd.delete(h.id);
+    this.mapVuil.prullenbak = this.mapVuil.prullenbak.filter((b) => b !== h.bestand);
+    this._hoofdstuk(h.id);
+    this._meta();
+    this._gewijzigd();
+  }
+
   verplaatsHoofdstuk(id, naarIndex) {
     const v = this.project.meta.volgorde;
     const van = v.indexOf(id);

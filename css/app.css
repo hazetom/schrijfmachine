@@ -233,7 +233,7 @@ a:hover { color: var(--inkt); }
 
 /* ---------- hoofdstukken ---------- */
 .hs-raster {
-  height: 100%; display: grid; grid-template-columns: minmax(380px, 520px) minmax(0, 1fr); gap: 72px; padding: 24px 80px 0 80px;
+  flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(380px, 520px) minmax(0, 1fr); gap: 72px; padding: 24px 80px 0 80px;
 }
 .hs-lijst-kolom { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .hs-slotbalk {
@@ -433,3 +433,54 @@ a:hover { color: var(--inkt); }
 .tl-moment:hover { color: var(--inkt); text-decoration: underline; text-underline-offset: 3px; }
 .aliasveld { font: inherit; font-size: 13px; border: 0; border-bottom: 1px solid transparent; background: transparent; padding: 2px 0; color: var(--grijs-donker); width: 100%; }
 .aliasveld:focus { border-bottom-color: var(--lijn); }
+
+/* ---------- Boek: overzicht, tabs, tijdlijnen ---------- */
+.view.boek { display: flex; flex-direction: column; }
+.view.boek[hidden] { display: none !important; }
+.boek-tabs { display: flex; gap: 4px; padding: 0 80px; border-bottom: 1px solid var(--lijn); flex: none; font-size: 14px; }
+.boek-tabs .knop { padding: 0 12px; color: var(--grijs); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.boek-tabs .knop[aria-selected="true"] { color: var(--inkt); border-bottom-color: var(--inkt); }
+.boek-paneel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 28px 80px 24px; }
+.hs-raster.boek-paneel { overflow: hidden; padding-bottom: 0; }
+.ov { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 64px; max-width: 1200px; }
+.ov h1 { font-size: 44px; font-weight: 400; margin: 0 0 6px; line-height: 1.1; }
+.ov .klein { font-size: 14px; color: var(--grijs); margin: 0 0 22px; }
+.ov-verder { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 22px; border: 1px solid var(--inkt); background: transparent; cursor: pointer; text-align: left; width: 100%; max-width: 560px; margin-bottom: 30px; }
+.ov-verder:hover { background: var(--tint); }
+.ov-verder .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); }
+.ov-verder .wat { font-size: 22px; }
+.ov-verder .hint { font-size: 13px; color: var(--grijs); }
+.ov-blok-titel { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs); margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--lijn); }
+.ov-opbouw { list-style: none; margin: 0 0 24px; padding: 0; }
+.ov-opbouw .deel { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grijs-donker); margin: 14px 0 4px; }
+.ov-opbouw button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; border: 0; background: transparent; padding: 0 6px; cursor: pointer; text-align: left; font-size: 16px; color: var(--inkt); }
+.ov-opbouw button:hover { background: var(--tint); }
+.ov-opbouw .nr { width: 22px; font-size: 13px; color: var(--grijs); }
+.ov-opbouw .st { margin-left: auto; font-size: 12px; color: var(--grijs); }
+.ov-zij p, .ov-zij li { font-size: 14px; line-height: 1.6; color: var(--grijs-donker); }
+.ov-zij ul { padding-left: 18px; margin: 0 0 24px; }
+.ov-zij kbd { font-family: inherit; font-size: 12px; border: 1px solid var(--lijn); padding: 0 5px; }
+.raster-wrap { overflow-x: auto; }
+.raster { border-collapse: collapse; font-size: 13px; }
+.raster th, .raster td { padding: 0; text-align: center; }
+.raster thead th { font-weight: 400; color: var(--grijs); height: 120px; vertical-align: bottom; white-space: nowrap; }
+.raster thead th span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); padding: 4px 0; max-height: 116px; overflow: hidden; text-overflow: ellipsis; }
+.raster thead th.deelkop span { color: var(--grijs-donker); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.raster tbody th { text-align: left; font-weight: 400; padding: 0 16px 0 0; white-space: nowrap; font-size: 14px; }
+.raster tbody th button { border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--inkt); font-size: 14px; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; }
+.raster td { width: 30px; height: 34px; border-left: 1px solid var(--tint); }
+.raster td.deelgrens, .raster th.deelgrens { border-left: 1px solid var(--lijn); }
+.raster td button { border: 0; background: transparent; width: 30px; height: 34px; padding: 0; cursor: pointer; display: grid; place-items: center; }
+.raster .stip-r { display: block; border-radius: 50%; }
+.raster td button:hover { background: var(--tint); }
+.raster-detail { margin-top: 18px; max-width: 760px; }
+.raster-detail h3 { font-size: 16px; font-weight: 400; margin: 0 0 6px; }
+.instel-lijst { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 640px; }
+.instel-lijst .knop { padding: 0; font-size: 16px; color: var(--inkt); justify-content: flex-start; }
+.instel-lijst .uitleg { font-size: 13px; color: var(--grijs); margin: -6px 0 10px; }
+/* rij-menu (drie puntjes) */
+.hs-rij { position: relative; }
+.rij-menu-knop { opacity: 0; border: 0; background: transparent; min-width: 32px; min-height: 32px; cursor: pointer; color: var(--grijs); font-size: 18px; line-height: 1; flex: none; }
+.hs-rij:hover .rij-menu-knop, .hs-rij[aria-current="true"] .rij-menu-knop, .rij-menu-knop:focus-visible { opacity: 1; }
+.rij-menu { position: fixed; z-index: 45; }
+.status.ongedaan #status-tekst { color: var(--blauw); text-decoration: underline; text-underline-offset: 4px; }

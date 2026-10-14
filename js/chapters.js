@@ -7,7 +7,8 @@ import { mdToBlocks } from './markdown.js';
 import { aanwezig, voorstellen, maakPersonage, voegAliasToe, markeerAls } from './personages.js';
 
 export class Hoofdstukken {
-  constructor({ openSchrijven, openNotities }) {
+  constructor({ openSchrijven, openNotities, verwijder }) {
+    this.verwijderCb = verwijder;
     this.lijstEl = document.getElementById('hs-lijst');
     this.detailEl = document.getElementById('hs-detail');
     this.slotEl = document.getElementById('hs-slotbalk');
@@ -36,6 +37,9 @@ export class Hoofdstukken {
         const ids = store.rijen().map((r) => (r.soort === 'deel' ? r.deel.id : r.h.id));
         const k = ids.indexOf(this.gekozen) + (e.key === 'ArrowUp' ? -1 : 1);
         if (k >= 0 && k < ids.length) { this.gekozen = ids[k]; this.render(); this.focusRij(); }
+      } else if (e.key === 'Delete' && e.target.closest('.hs-rij')) {
+        e.preventDefault();
+        this.verwijderSnel(this.gekozen);
       } else if (e.key === 'Enter' && store.hoofdstuk(this.gekozen)) {
         e.preventDefault();
         this.openSchrijven(this.gekozen);
@@ -170,6 +174,9 @@ export class Hoofdstukken {
   // Klikken en slepen, voor hoofdstukken en delen.
   koppelRij(rij, id) {
     const isDeel = !!store.deel(id);
+    const menuKnop = el('button', { class: 'rij-menu-knop', 'aria-label': 'Meer acties', title: 'Meer acties', text: '···' });
+    menuKnop.addEventListener('click', (e) => { e.stopPropagation(); this.rijMenu(id, menuKnop); });
+    rij.appendChild(menuKnop);
     rij.addEventListener('click', () => { this.gekozen = id; this.render(); this.focusRij(); });
     rij.addEventListener('dragstart', (e) => { this.sleepId = id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); });
     rij.addEventListener('dragover', (e) => {
@@ -223,6 +230,51 @@ export class Hoofdstukken {
     // achteraan in de lijst van delen zodat het direct boven het hoofdstuk komt
     store.project.meta.delen = store.delen().filter((x) => x.id !== d.id).concat([d]);
     store.wijzigDeel(d.id, { voor });
+  }
+
+  // Het menuutje achter de drie puntjes van een rij
+  rijMenu(id, knop) {
+    document.querySelectorAll('.rij-menu').forEach((m) => m.remove());
+    const h = store.hoofdstuk(id);
+    const dl = store.deel(id);
+    const menu = el('div', { class: 'menu rij-menu', role: 'menu' });
+    const item = (tekst, fn, uit = false) => { const b = el('button', { role: 'menuitem', text: tekst, disabled: uit }); b.addEventListener('click', () => { menu.remove(); fn(); }); menu.append(b); };
+    const v = store.meta.volgorde;
+    if (h) {
+      item('Openen en schrijven', () => this.openSchrijven(id));
+      item('Hernoemen', () => { this.gekozen = id; this.render(); this.focusTitel(); });
+      item('Nieuw hoofdstuk hierna', () => { this.gekozen = store.nieuwHoofdstuk(id); this.render(); this.focusTitel(); });
+      item('Nieuw deel vanaf hier', () => { const nd = store.nieuwDeel(id, 'Nieuw deel'); this.gekozen = nd.id; this.render(); this.focusTitel(); });
+      item('Omhoog', () => this.verschuif(id, -1), v.indexOf(id) === 0);
+      item('Omlaag', () => this.verschuif(id, 1), v.indexOf(id) === v.length - 1);
+      const slot = store.isVergrendeld(id);
+      item(slot ? 'Ontgrendelen' : 'Vergrendelen', () => { const ids = store.meta.vergrendeld.filter((x) => x !== id); if (!slot) ids.push(id); store.zetVergrendeld(ids, store.meta.vergrendelPagina); this.render(); });
+      menu.append(el('hr'));
+      item('Verwijderen', () => this.verwijderSnel(id), v.length <= 1);
+    } else if (dl) {
+      item('Hernoemen', () => { this.gekozen = id; this.render(); this.focusTitel(); });
+      item('Nieuw hoofdstuk in dit deel', () => { this.gekozen = id; this.render(); const b = [...this.detailEl.querySelectorAll('button')].find((x) => x.textContent === 'Nieuw hoofdstuk in dit deel'); if (b) b.click(); });
+      menu.append(el('hr'));
+      item('Deel verwijderen (hoofdstukken blijven)', () => this.verwijderSnel(id));
+    }
+    document.body.append(menu);
+    const r = knop.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(window.innerWidth - 280, r.right - 270)) + 'px';
+    menu.style.top = Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4) + 'px';
+    const weg = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', weg, true); } };
+    setTimeout(() => document.addEventListener('pointerdown', weg, true), 0);
+    menu.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); menu.remove(); knop.focus(); } });
+    const eerste = menu.querySelector('button:not([disabled])');
+    if (eerste) eerste.focus();
+  }
+
+  verwijderSnel(id) {
+    const v = store.meta.volgorde;
+    const k = Math.max(0, v.indexOf(id));
+    this.verwijderCb(id);
+    this.gekozen = store.hoofdstuk(id) || store.deel(id) ? id : v[Math.max(0, k - 1)];
+    this.render();
+    this.focusRij();
   }
 
   verschuif(id, delta, focus = false) {
@@ -373,18 +425,8 @@ export class Hoofdstukken {
       el('div', { class: 'hs-knoppen' },
         el('button', { class: 'knop omlijnd', text: 'Verder schrijven', onclick: () => this.openSchrijven(h.id) })),
       el('div', { class: 'hs-klein' },
-        el('button', { class: 'knop', text: 'Omhoog', title: 'Alt+pijl omhoog', disabled: store.meta.volgorde.indexOf(h.id) === 0, onclick: () => this.verschuif(h.id, -1) }),
-        el('button', { class: 'knop', text: 'Omlaag', title: 'Alt+pijl omlaag', disabled: store.meta.volgorde.indexOf(h.id) === store.meta.volgorde.length - 1, onclick: () => this.verschuif(h.id, 1) }),
-        el('button', { class: 'knop', text: 'Nieuw hoofdstuk hierna', onclick: () => { this.gekozen = store.nieuwHoofdstuk(h.id); this.render(); this.focusTitel(); } }),
-        el('button', { class: 'knop', text: 'Nieuw deel vanaf hier', title: 'Bijvoorbeeld een act die met dit hoofdstuk begint', onclick: () => { const nd = store.nieuwDeel(h.id, 'Nieuw deel'); this.gekozen = nd.id; this.render(); this.focusTitel(); } }),
-        el('button', { class: 'knop', text: slot ? 'Ontgrendel dit hoofdstuk' : 'Vergrendel dit hoofdstuk', onclick: () => {
-          const ids = store.meta.vergrendeld.filter((x) => x !== h.id);
-          if (!slot) ids.push(h.id);
-          store.zetVergrendeld(ids, store.meta.vergrendelPagina);
-          this.render();
-        } }),
         el('button', { class: 'knop', text: 'Verhaallijnen', onclick: () => this.openNotities('verhaallijnen') }),
-        el('button', { class: 'knop', text: 'Verwijder', disabled: store.meta.volgorde.length <= 1, onclick: () => this.verwijder(h) }),
+        el('span', { class: 'leeg-hint', style: { fontSize: '13px', alignSelf: 'center' }, text: 'Verplaatsen, verwijderen en meer: de drie puntjes in de lijst.' }),
       ),
     ].filter(Boolean));
     requestAnimationFrame(() => { groei(); groeiSamen(); });

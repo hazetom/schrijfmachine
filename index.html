@@ -32,9 +32,9 @@
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
         <span id="knop-vergrendel-tekst">Vergrendel</span>
       </button>
-      <button class="knop alleen-schrijven" id="knop-hoofdstukken" title="Hoofdstukken (Ctrl+Alt+H)">
+      <button class="knop alleen-schrijven" id="knop-hoofdstukken" title="Je boek: overzicht, hoofdstukken, personages (Ctrl+Alt+H)">
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
-        <span>Hoofdstukken</span>
+        <span>Boek</span>
       </button>
       <button class="knop alleen-hoofdstukken" id="knop-terug">
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
@@ -93,8 +93,19 @@
       </div>
     </section>
 
-    <section class="view" id="view-hoofdstukken" aria-label="Hoofdstukken" hidden>
-      <div class="hs-raster">
+    <section class="view boek" id="view-hoofdstukken" aria-label="Boek" hidden>
+      <nav class="boek-tabs" id="boek-tabs" role="tablist" aria-label="Boek">
+        <button class="knop" role="tab" data-tab="overzicht">Overzicht</button>
+        <button class="knop" role="tab" data-tab="hoofdstukken">Hoofdstukken</button>
+        <button class="knop" role="tab" data-tab="personages">Personages</button>
+        <button class="knop" role="tab" data-tab="lijnen">Verhaallijnen</button>
+        <button class="knop" role="tab" data-tab="instellingen">Instellingen</button>
+      </nav>
+      <div class="boek-paneel" id="boek-overzicht" data-paneel="overzicht"></div>
+      <div class="boek-paneel" id="boek-personages" data-paneel="personages" hidden></div>
+      <div class="boek-paneel" id="boek-lijnen" data-paneel="lijnen" hidden></div>
+      <div class="boek-paneel" id="boek-instellingen" data-paneel="instellingen" hidden></div>
+      <div class="hs-raster boek-paneel" data-paneel="hoofdstukken" hidden>
         <section class="hs-lijst-kolom" aria-label="Hoofdstukkenlijst">
           <div class="hs-slotbalk" id="hs-slotbalk"></div>
           <ol class="hs-lijst" id="hs-lijst"></ol>
