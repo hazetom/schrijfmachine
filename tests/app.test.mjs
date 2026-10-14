@@ -175,7 +175,7 @@ await test('bladeren: PageUp/PageDown, klikken in de rand, typen na omslaan', as
   await p.keyboard.press('PageUp');
   c = await verwachtZichtbaar(p, 'twee keer PageUp');
   assert.equal(c.pagina, Math.max(0, laatste - 3));
-  await p.click('#zone-volgende', { position: { x: 30, y: 200 } });
+  await p.click('#zone-volgende');
   c = await verwachtZichtbaar(p, 'klik rechterrand');
   assert.equal(c.pagina, Math.max(0, laatste - 2));
   await p.click('#knop-vorige');
@@ -1388,23 +1388,41 @@ await test('aantekeningen: in de tekst, op het overzicht, spiekbriefje, niet in 
   await ctx.close();
 });
 
-await test('bladerzones beginnen pas naast de tekst, ook met het spiekbriefje open', async () => {
+await test('selecteren met de muis slaat nooit een pagina om; bladeren met de knoppen naast de tekst', async () => {
   for (const vp of [{ width: 1280, height: 720 }, { width: 1536, height: 864 }]) {
     const ctx = await nieuweContext(vp);
-    const p = await open(ctx, 'zones' + vp.width);
-    await p.keyboard.type(ZIN.repeat(4));
+    const p = await open(ctx, 'selecteer' + vp.width);
+    for (let a = 0; a < 8; a++) { await p.keyboard.type(ZIN.repeat(3)); await p.keyboard.press('Enter'); }
+    await p.keyboard.press('Control+Home');
+    await p.waitForTimeout(150);
     for (const spiek of [false, true]) {
-      if (spiek) { await p.click('#knop-notities'); await p.waitForTimeout(200); }
-      const r = await p.evaluate(() => {
-        const k = document.getElementById('tekstkader').getBoundingClientRect();
-        const y = k.top + 40;
-        const wie = (x) => { const e = document.elementFromPoint(x, y); return e ? (e.id || e.className) : ''; };
-        return { rand: wie(k.right - 2), net: wie(k.right + 20), ver: wie(k.right + 80), links: wie(k.left - 20), linksVer: wie(k.left - 80) };
-      });
-      const tekstOfKader = (x) => !/bladzone|zone-/.test(x);
-      assert.ok(tekstOfKader(r.rand) && tekstOfKader(r.net) && tekstOfKader(r.links), JSON.stringify({ vp, spiek, r }));
-      assert.ok(r.ver === 'zone-volgende' && r.linksVer === 'zone-vorige', JSON.stringify({ vp, spiek, r }));
+      if (spiek) { await p.click('#knop-notities'); await p.waitForTimeout(200); await p.click('#tekst', { position: { x: 30, y: 30 } }); }
+      const k = await p.evaluate(() => { const r = document.getElementById('tekstkader').getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; });
+      assert.equal(await p.evaluate(() => window.__schrijfmachine.editor.pagina), 0);
+      // slepen vanuit het midden naar rechts over de rand en naar beneden, en terug naar links
+      await p.mouse.move(k.l + 60, k.t + 60);
+      await p.mouse.down();
+      for (const [x, y] of [[k.l + 200, k.t + 140], [k.r + 6, k.t + 220], [k.r + 30, k.b - 10], [k.r - 4, k.b + 20], [k.l - 10, k.t + 100], [k.r - 20, k.t + 260]]) {
+        await p.mouse.move(x, y, { steps: 6 });
+        assert.equal(await p.evaluate(() => window.__schrijfmachine.editor.pagina), 0, 'pagina sloeg om tijdens selecteren ' + JSON.stringify({ vp, spiek, x, y }));
+      }
+      await p.mouse.up();
+      await p.waitForTimeout(150);
+      const na = await p.evaluate(() => ({ pagina: window.__schrijfmachine.editor.pagina, tekst: String(getSelection()).length }));
+      assert.equal(na.pagina, 0, 'na loslaten nog steeds dezelfde pagina');
+      assert.ok(na.tekst > 50, 'er is tekst geselecteerd');
+      await p.keyboard.press('Control+i');
+      assert.equal(await p.evaluate(() => window.__schrijfmachine.editor.pagina), 0, 'cursief maken houdt de pagina');
+      await p.keyboard.press('Control+z');
     }
+    // de knop rechts naast de tekst bladert, de linker terug
+    assert.equal(await p.isVisible('#zone-volgende'), true);
+    await p.click('#zone-volgende');
+    assert.equal(await p.evaluate(() => window.__schrijfmachine.editor.pagina), 1);
+    await p.click('#zone-vorige');
+    assert.equal(await p.evaluate(() => window.__schrijfmachine.editor.pagina), 0);
+    await p.screenshot({ path: UIT + 'bladerknoppen-' + vp.width + '.png' });
+    assert.deepEqual(p.fouten, []);
     await ctx.close();
   }
 });

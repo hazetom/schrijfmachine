@@ -29,13 +29,14 @@ export class Kantlijn {
   }
 
   ruimte() {
-    return this.kader.getBoundingClientRect().left - this.blad.getBoundingClientRect().left - 72;
+    return this.kader.getBoundingClientRect().left - this.blad.getBoundingClientRect().left - 136; // ruimte laten voor de bladerknop
   }
 
   muis(e) {
     if (this.vast) return;
     const kr = this.kader.getBoundingClientRect();
-    if (e.clientX < kr.left - 24) {
+    if (e.target.closest && e.target.closest('.bladzone')) return; // op de bladerknop: geen kantlijn
+    if (e.clientX < kr.left - 96) {
       if (!this.zichtbaar) this.toon();
     } else if (e.clientX >= kr.left && this.zichtbaar && !this.el.contains(e.target)) {
       this.verberg();

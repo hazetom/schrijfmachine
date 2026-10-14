@@ -155,8 +155,7 @@ a:hover { color: var(--inkt); }
 .bladzone {
   position: absolute; top: 0; bottom: 0; width: 0; border: 0; background: transparent; cursor: default; padding: 0;
 }
-.bladzone.links { left: 0; cursor: w-resize; }
-.bladzone.rechts { right: 0; cursor: e-resize; }
+.bladzone.links, .bladzone.rechts { cursor: pointer; }
 .tekstkader {
   position: relative; height: 100%; width: var(--kolom); flex: none; overflow: clip;
   font-size: var(--tekstgrootte); line-height: var(--regel);
@@ -608,3 +607,9 @@ span.kruim { cursor: default; }
 .dialoog .hs-slotbalk { flex-wrap: wrap; border: 0; padding: 4px 0; }
 .dialoog .hs-slotbalk .links { flex-wrap: wrap; }
 #app[data-view="hoofdstukken"][data-boektab="overzicht"] .kicker { visibility: hidden; }
+
+/* bladerknoppen naast de tekst */
+.bladzone { top: calc(50% - 44px); bottom: auto; width: 44px !important; height: 88px; display: grid; place-items: center; color: var(--grijs); z-index: 4; }
+.bladzone:hover:not(:disabled) { color: var(--inkt); background: var(--tint-licht); }
+.bladzone:disabled { opacity: 0; cursor: default; pointer-events: none; }
+.bladzone.krap { display: none; }

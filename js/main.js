@@ -878,6 +878,11 @@ function sneltoetsen() {
       naarBoek();
       return;
     }
+    // pijltjes links/rechts bladeren als je niet in de tekst of een veld zit
+    if (app.dataset.view === 'schrijven' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      const a = document.activeElement;
+      if (!a || a === document.body || a.classList.contains('bladzone')) { e.preventDefault(); editor.blader(e.key === 'ArrowRight' ? 1 : -1); return; }
+    }
     if (app.dataset.view === 'schrijven' && (e.key === 'PageDown' || e.key === 'PageUp')) {
       const a = document.activeElement;
       if (a && (a.closest('#notities') || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return;

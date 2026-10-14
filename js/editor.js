@@ -54,6 +54,14 @@ export class Editor extends EventTarget {
     // zelf gaan schuiven. Wij verschuiven de tekst per hele pagina met een transform.
     this.kader.addEventListener('scroll', () => { this.kader.scrollLeft = 0; this.kader.scrollTop = 0; });
     this.kader.addEventListener('wheel', (e) => this.wiel(e), { passive: false });
+    // selecteren met de muis: zolang de knop ingedrukt is, slaat de pagina niet om
+    this.slepen = false;
+    this.laatsteGoed = null;
+    this.el.addEventListener('pointerdown', (e) => { if (e.button === 0) { this.slepen = true; this.laatsteGoed = null; } });
+    const los = () => { if (!this.slepen) return; this.slepen = false; this.houdSelectieOpPagina(); };
+    window.addEventListener('pointerup', los, true);
+    window.addEventListener('pointercancel', los, true);
+    window.addEventListener('blur', los);
     new ResizeObserver(() => this.herbereken()).observe(this.kader);
     new ResizeObserver(() => this.plaatsZones()).observe(this.kader.parentElement);
     document.getElementById('zone-vorige').addEventListener('click', () => this.blader(-1));
@@ -239,7 +247,21 @@ export class Editor extends EventTarget {
     const t = n ? `translateX(${-n * this.stap()}px)` : '';
     if (this.el.style.transform !== t) this.el.style.transform = t;
     this.pasVergrendelingToe();
+    this.plaatsZones();
     this.dispatchEvent(new CustomEvent('pagina', { detail: { pagina: n, aantal: this.aantal } }));
+  }
+
+  // Een selectie met de muis blijft op de pagina die je ziet: komt het eind ervan op een andere
+  // pagina terecht, dan zetten we het terug op de laatste plek die wel op deze pagina lag.
+  houdSelectieOpPagina() {
+    const sel = document.getSelection();
+    if (!sel || !sel.rangeCount || !this.el.contains(sel.focusNode)) return;
+    const p = this.caretPagina();
+    if (p === null || p === this.pagina) { this.laatsteGoed = { node: sel.focusNode, offset: sel.focusOffset }; return; }
+    const g = this.laatsteGoed;
+    if (g && this.el.contains(g.node)) {
+      try { sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, g.node, g.offset); } catch (e) { /* */ }
+    }
   }
 
   // Op welke pagina staat de cursor?
@@ -266,6 +288,10 @@ export class Editor extends EventTarget {
   }
 
   volgCaret(forceer = false) {
+    // Tijdens het selecteren met de muis blijft de pagina staan. De pagina's staan als kolommen
+    // naast elkaar; schuift de muis een fractie te ver, dan wijst hij al naar tekst op de
+    // volgende pagina. Dat mag nooit een pagina omslaan.
+    if (this.slepen) { this.houdSelectieOpPagina(); return; }
     const p = this.caretPagina();
     if (p === null) {
       if (forceer) this.zetPagina(this.pagina);
@@ -279,16 +305,22 @@ export class Editor extends EventTarget {
     this.verbleek();
   }
 
-  // De bladerzones links en rechts beginnen pas een eind naast de tekst, zodat je bij
-  // het einde van een regel gewoon kunt klikken en bewerken. Gemeten, niet geschat.
+  // Bladerknoppen: twee rustige pijlen naast de tekst, halverwege de hoogte.
+  // Alleen een echte klik erop slaat om; selecteren in de tekst kan ze niet raken.
   plaatsZones() {
     const blad = this.kader.parentElement;
     const b = blad.getBoundingClientRect(), k = this.kader.getBoundingClientRect();
     if (!k.width) return;
-    const MARGE = 40;
     const links = document.getElementById('zone-vorige'), rechts = document.getElementById('zone-volgende');
-    links.style.width = Math.max(0, k.left - b.left - MARGE) + 'px';
-    rechts.style.width = Math.max(0, b.right - k.right - MARGE) + 'px';
+    const ruimte = k.left - b.left;
+    const AFSTAND = 36, BREED = 44;
+    const past = ruimte >= AFSTAND + BREED + 4;
+    links.style.left = (ruimte - AFSTAND - BREED) + 'px';
+    rechts.style.left = (k.right - b.left + AFSTAND) + 'px';
+    links.classList.toggle('krap', !past);
+    rechts.classList.toggle('krap', !past);
+    links.disabled = this.pagina === 0;
+    rechts.disabled = this.pagina >= this.aantal - 1;
   }
 
   herbereken() {
@@ -311,10 +343,13 @@ export class Editor extends EventTarget {
   wiel(e) {
     if (e.ctrlKey) return;
     e.preventDefault();
+    if (this.slepen || e.buttons) return; // tijdens selecteren nooit bladeren
     const nu = Date.now();
     if (nu - this.wielTijd > 400) this.wielTotaal = 0;
     this.wielTijd = nu;
-    this.wielTotaal += Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    // alleen duidelijk verticaal (twee vingers omhoog of omlaag); zijwaarts schuiven telt niet
+    if (Math.abs(e.deltaY) < Math.abs(e.deltaX) * 2) return;
+    this.wielTotaal += e.deltaY;
     if (Math.abs(this.wielTotaal) >= 150) {
       this.blader(this.wielTotaal > 0 ? 1 : -1);
       this.wielTotaal = 0;

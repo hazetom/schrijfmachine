@@ -142,6 +142,8 @@ De app vraagt hier nergens anders ongevraagd aandacht voor. Dit gaat zonder AI, 
 
 ## Tijdens het schrijven
 
+- **Bladeren.** Met de pijlen naast de tekst, PageUp/PageDown, of twee vingers omhoog en omlaag op de touchpad. Tijdens het selecteren met de muis slaat de pagina nooit om: wat je selecteert blijft op de pagina die je ziet.
+
 - **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (naar Boek), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
 - **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
 - **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
@@ -167,7 +169,8 @@ Elke export krijgt de datum en tijd in de naam, zodat een eerdere export nooit w
 | Ctrl+Alt+2 | Kopje binnen het hoofdstuk (aan/uit) |
 | Ctrl+Shift+Enter, of `***` + Enter | Scènescheiding |
 | PageDown / PageUp | Volgende / vorige pagina |
-| Klik in de lege rand links of rechts | Bladeren |
+| De pijl links of rechts naast de tekst | Bladeren |
+| ← / → (als je niet in de tekst zit) | Bladeren |
 | Ctrl+PageDown / Ctrl+PageUp | Volgend / vorig hoofdstuk |
 | Ctrl+F | Zoeken en vervangen (of A12: naar alinea 12) |
 | Ctrl+Alt+C | Klaar voor Claude |
@@ -185,7 +188,7 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE, NOOT 
 
 ## Keuzes die ik zelf heb gemaakt
 
-- **Bladeren:** PageDown/PageUp, klikken in de lege rand naast de tekst, de pijltjes onderin, of scrollen met het touchpad (één pagina per beweging). Typ of wis je over de rand van een pagina, dan slaat de app vanzelf om.
+- **Bladeren:** PageDown/PageUp, de pijlen naast de tekst, de pijltjes onderin, of scrollen met het touchpad (één pagina per beweging). Typ of wis je over de rand van een pagina, dan slaat de app vanzelf om.
 - **Verbleken:** alle alinea's vóór de alinea waar je cursor staat zijn iets lichter. Zet je de cursor terug in een oude alinea, dan wordt die weer donker.
 - **Vergrendelen:** de knop **Vergrendel** zet alle eerdere hoofdstukken en de eerdere pagina's van dit hoofdstuk achter een waas. Via Meer > Vergrendelen kun je ook een eigen reeks kiezen ("Vergrendel 1 t/m 9") of één hoofdstuk apart. Een vergrendeld hoofdstuk kun je niet per ongeluk bewerken. Eén klik op **Ontgrendel** en alles is weer zichtbaar.
 - **Verhaallijnen:** de kleurlabels van hoofdstukken komen uit Boek > Aantekeningen > Verhaallijnen. Je kunt er ook direct een maken vanuit een hoofdstuk ("Nieuwe verhaallijn…"). Kleuren: blauw, rood, oker, groen, pruim en grijs, allemaal gedempt.
