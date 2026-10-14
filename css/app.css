@@ -579,3 +579,32 @@ span.kruim { cursor: default; }
   .ov, .ant-raster { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .hs-uitklap { padding-left: 24px; }
 }
+
+/* ---------- v9: binnenkomen op de inhoudsopgave ---------- */
+#app[data-boektab="overzicht"] .alleen-subpagina { display: none !important; }
+.knop .tal { font-size: 12px; color: var(--oker); margin-left: -2px; }
+.knop.let-op::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--oker); margin-left: -2px; }
+.ov { display: block; max-width: 680px; margin: 0 auto; padding-top: 12px; }
+.ov h1 { text-align: center; margin: 0 0 6px; }
+.ov-titel { font: inherit; font-size: 44px; font-weight: 400; color: var(--inkt); background: transparent; border: 0; padding: 0; cursor: text; line-height: 1.15; }
+.ov-titel.leeg { color: var(--verbleekt); font-style: italic; }
+.ov-titel:hover { text-decoration: underline; text-decoration-color: var(--lijn); text-underline-offset: 6px; }
+.ov .klein { text-align: center; margin: 0 0 26px; }
+.ov-verder { max-width: none; flex-direction: row; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 22px; margin-bottom: 18px; }
+.ov-verder .wat { font-size: 19px; }
+.ov-uitleg { font-size: 14px; color: var(--grijs); text-align: center; margin: 0 0 18px; }
+.ov-uitleg .knop { min-height: 32px; }
+#boek-overzicht .hs-lijst { margin-top: 14px; }
+#boek-overzicht .hs-rij { min-height: 48px; padding: 0 8px; border-bottom: 1px solid var(--tint); }
+#boek-overzicht .hs-rij[aria-current="true"]:not(:focus-visible) { background: transparent; box-shadow: none !important; }
+#boek-overzicht .hs-rij:hover { background: var(--tint-licht); }
+#boek-overzicht .hs-rij.hs-deel { border-bottom: 0; min-height: 44px; }
+#boek-overzicht .hs-lijn { display: none; }
+.hs-rij.huidig .hs-titel::after { content: '  · hier was je'; }
+.hs-uitklap { padding: 6px 14px 22px 44px; }
+.hs-plus { align-self: flex-start; padding: 0; min-height: 32px; color: var(--grijs); font-size: 15px; }
+.hs-plus:hover { color: var(--inkt); }
+#boek-overzicht .hs-nieuw-rij { justify-content: center; margin-top: 10px; }
+.dialoog .hs-slotbalk { flex-wrap: wrap; border: 0; padding: 4px 0; }
+.dialoog .hs-slotbalk .links { flex-wrap: wrap; }
+#app[data-view="hoofdstukken"][data-boektab="overzicht"] .kicker { visibility: hidden; }

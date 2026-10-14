@@ -10,11 +10,11 @@ export class Hoofdstukken {
   constructor({ openSchrijven, openPersoon, verwijder }) {
     this.verwijderCb = verwijder;
     this.lijstEl = document.getElementById('hs-lijst');
-    this.detailEl = el('section', { class: 'hs-detail', id: 'hs-detail', 'aria-label': 'Gekozen hoofdstuk' });
-    this.ingeklapt = false;
+    this.detailEl = el('section', { class: 'hs-detail', id: 'hs-detail', 'aria-label': 'Gegevens' });
+    this.ingeklapt = true; // gegevens alleen als je erom vraagt (··· > Gegevens)
     this.filterLijn = null;
     this.naRender = null;
-    this.slotEl = document.getElementById('hs-slotbalk');
+    this.slotEl = el('div', { class: 'hs-slotbalk', id: 'hs-slotbalk' }); // staat in Meer > Vergrendelen
     this.gekozen = null;
     this.openSchrijven = openSchrijven;
     this.openPersoon = openPersoon;
@@ -44,16 +44,17 @@ export class Hoofdstukken {
       } else if (e.key === 'Delete' && e.target.closest('.hs-rij')) {
         e.preventDefault();
         this.verwijderSnel(this.gekozen);
-      } else if (e.key === 'Enter' && store.hoofdstuk(this.gekozen)) {
+      } else if (e.key === 'Enter' && e.target.closest('.hs-rij')) {
         e.preventDefault();
-        this.openSchrijven(this.gekozen);
+        if (store.hoofdstuk(this.gekozen)) this.openSchrijven(this.gekozen);
+        else { this.ingeklapt = !this.ingeklapt; this.render(); this.focusRij(); }
       }
     });
   }
 
-  toon(id = null) {
+  toon(id = null, { open = false } = {}) {
     this.gekozen = id || store.meta.huidig;
-    this.ingeklapt = false;
+    this.ingeklapt = !open;
     this.render();
     const rij = this.lijstEl.querySelector('[aria-current="true"]');
     if (rij) rij.scrollIntoView({ block: 'nearest' });
@@ -198,7 +199,8 @@ export class Hoofdstukken {
     rij.appendChild(menuKnop);
     rij.addEventListener('click', (e) => {
       if (e.target.closest('.rij-menu-knop')) return;
-      // nog een keer klikken klapt de gegevens in of uit
+      // een hoofdstuk aanklikken = erin schrijven, zoals in een inhoudsopgave; een deel klapt open
+      if (store.hoofdstuk(id)) { this.gekozen = id; this.openSchrijven(id); return; }
       if (this.gekozen === id) this.ingeklapt = !this.ingeklapt; else { this.gekozen = id; this.ingeklapt = false; }
       this.render();
       this.focusRij();
@@ -267,6 +269,7 @@ export class Hoofdstukken {
     const v = store.meta.volgorde;
     if (h) {
       item('Openen en schrijven', () => this.openSchrijven(id));
+      item('Gegevens', () => this.toonGegevens(id));
       item('Hernoemen', () => { this.gekozen = id; this.render(); this.focusTitel(); });
       item('Nieuw hoofdstuk hierna', () => { this.gekozen = store.nieuwHoofdstuk(id); this.render(); this.focusTitel(); });
       item('Nieuw deel vanaf hier', () => { const nd = store.nieuwDeel(id, 'Nieuw deel'); this.gekozen = nd.id; this.render(); this.focusTitel(); });
@@ -291,6 +294,14 @@ export class Hoofdstukken {
     menu.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); menu.remove(); knop.focus(); } });
     const eerste = menu.querySelector('button:not([disabled])');
     if (eerste) eerste.focus();
+  }
+
+  toonGegevens(id) {
+    this.gekozen = id;
+    this.ingeklapt = false;
+    this.render();
+    const r = this.lijstEl.querySelector('.hs-uitklap');
+    if (r) r.scrollIntoView({ block: 'nearest' });
   }
 
   verwijderSnel(id) {
@@ -443,17 +454,26 @@ export class Hoofdstukken {
         el('span', { text: woorden(h.woorden) }),
         status,
         telt),
-      el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Scènedoel' }), doel),
-      el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: 'Samenvatting' }), samen),
+      this.veldOfLink('Scènedoel', doel, h.doel),
+      this.veldOfLink('Samenvatting', samen, h.samenvatting),
       scenes,
       this.personagesBlok ? this.personagesBlok(h) : null,
       el('div', { class: 'hs-knoppen' },
         el('button', { class: 'knop omlijnd', text: 'Verder schrijven', onclick: () => this.openSchrijven(h.id) })),
       el('div', { class: 'hs-klein' },
-        el('span', { class: 'leeg-hint', style: { fontSize: '13px', alignSelf: 'center' }, text: 'Verplaatsen, verwijderen en meer: de drie puntjes achter de titel. Nog een keer klikken klapt dit in.' }),
+        el('button', { class: 'knop', text: 'Inklappen', onclick: () => { this.ingeklapt = true; this.render(); this.focusRij(); } }),
       ),
     ].filter(Boolean));
     requestAnimationFrame(() => { groei(); groeiSamen(); });
+  }
+
+  // Een leeg veld is geen vak met een vraag erin, maar één stille regel: "+ Scènedoel"
+  veldOfLink(label, veld, waarde) {
+    const blok = el('div', { class: 'hs-doel' }, el('span', { class: 'label', text: label }), veld);
+    if ((waarde || '').trim()) return blok;
+    const link = el('button', { class: 'knop hs-plus', text: '+ ' + label });
+    link.addEventListener('click', () => { link.replaceWith(blok); veld.focus(); });
+    return link;
   }
 
   // Wie komt er in dit hoofdstuk voor? Een klik opent de kaart bij Personages.

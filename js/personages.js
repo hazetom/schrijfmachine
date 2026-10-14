@@ -322,6 +322,8 @@ function afstand(a, b) {
   return vorige[n];
 }
 
+const zonderAccent = (w) => w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
 // Schrijfwijze controleren: staat er ergens "Phillips" terwijl het personage "Philips" heet?
 export function naamControle() {
   const personen = store.notities('personages');
@@ -346,6 +348,7 @@ export function naamControle() {
   const klein = kleineWoorden();
   const uit = [];
   for (const [w, x] of tel) {
+    if (zonderAccent(w) !== w && bekend.has(zonderAccent(w))) continue; // "Fránk" is klemtoon, geen tikfout
     if (bekend.has(w) || genegeerd.has(w) || klein.has(w.toLowerCase()) || STOP.has(w.toLowerCase())) continue;
     for (const [d, p] of bekend) {
       if (d[0] !== w[0] || Math.abs(d.length - w.length) > 2) continue;

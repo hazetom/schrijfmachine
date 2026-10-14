@@ -32,6 +32,12 @@
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>
         <span id="knop-vergrendel-tekst">Vergrendel</span>
       </button>
+      <button class="knop alleen-hoofdstukken alleen-subpagina" data-tab="overzicht" title="Terug naar de inhoud (Esc)">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        <span>Inhoud</span>
+      </button>
+      <button class="knop alleen-hoofdstukken" id="knop-personages" data-tab="personages"><span>Personages</span></button>
+      <button class="knop alleen-hoofdstukken" id="knop-aantekeningen" data-tab="aantekeningen"><span>Aantekeningen</span><span class="tal" id="knop-aantekeningen-tal"></span></button>
       <button class="knop wissel" id="knop-wissel" title="Wisselen tussen schrijven en je boek (Esc)">
         <svg class="alleen-schrijven" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>
         <svg class="alleen-hoofdstukken" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
@@ -50,6 +56,7 @@
           <button role="menuitem" data-actie="exporteer">Exporteer manuscript (.docx)</button>
           <button role="menuitem" data-actie="importeer">Importeer tekst…</button>
           <button role="menuitem" data-actie="versies">Versies terugzetten…</button>
+          <button role="menuitem" data-actie="vergrendelen">Vergrendelen…</button>
           <hr>
           <button role="menuitem" data-actie="map" id="menu-map">Kies map…</button>
           <button role="menuitem" data-actie="nu-opslaan">Nu opslaan</button>
@@ -57,7 +64,7 @@
           <hr>
           <button role="menuitem" data-actie="titel">Titel van het boek…</button>
           <button role="menuitem" data-actie="instellingen">Instellingen…</button>
-          <button role="menuitem" data-actie="hulp">Sneltoetsen</button>
+          <button role="menuitem" data-actie="hulp">Handig om te weten</button>
           <hr>
           <button role="menuitem" data-actie="update" id="menu-update">Zoek naar update</button>
           <span class="menu-versie" id="menu-versie"></span>
@@ -88,40 +95,13 @@
     </section>
 
     <section class="view boek" id="view-hoofdstukken" aria-label="Boek" hidden>
-      <nav class="boek-tabs" id="boek-tabs" role="tablist" aria-label="Boek">
-        <button class="knop" role="tab" data-tab="overzicht">Overzicht</button>
-        <button class="knop" role="tab" data-tab="personages">Personages</button>
-        <button class="knop" role="tab" data-tab="aantekeningen">Aantekeningen</button>
-      </nav>
       <div class="boek-paneel" id="boek-overzicht" data-paneel="overzicht">
         <div class="ov">
-          <div class="ov-hoofd">
-            <div id="ov-kop"></div>
-            <ol class="hs-lijst" id="hs-lijst" aria-label="Hoofdstukken"></ol>
-            <div class="hs-nieuw-rij">
-              <button class="knop hs-nieuw" id="hs-nieuw">
-                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                <span>Nieuw hoofdstuk</span>
-              </button>
-              <button class="knop hs-nieuw" id="hs-nieuw-deel">
-                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                <span>Nieuw deel</span>
-              </button>
-            </div>
-          </div>
-          <div class="ov-zij">
-            <div id="ov-zij-boven"></div>
-            <p class="ov-blok-titel">Vergrendelen</p>
-            <div class="hs-slotbalk" id="hs-slotbalk"></div>
-            <p class="ov-blok-titel">Handig om te weten</p>
-            <ul>
-              <li><kbd>Esc</kbd> wisselt tussen schrijven en dit overzicht. De terugtoets (of <kbd>Alt+←</kbd>) brengt je één stap terug.</li>
-              <li>Muis naar de linkerrand tijdens het schrijven: je hoofdstukken en het scènedoel.</li>
-              <li><kbd>Ctrl+Alt+N</kbd> spiekbriefje: alles over het hoofdstuk waar je in zit.</li>
-              <li><kbd>Ctrl+Alt+A</kbd> aantekening op de plek van je cursor.</li>
-              <li><kbd>Ctrl+F</kbd> zoeken in het hele boek, of A12 voor alinea 12.</li>
-              <li><kbd>Ctrl+Alt+C</kbd> Klaar voor Claude.</li>
-            </ul>
+          <div id="ov-kop"></div>
+          <ol class="hs-lijst" id="hs-lijst" aria-label="Inhoud"></ol>
+          <div class="hs-nieuw-rij">
+            <button class="knop hs-nieuw" id="hs-nieuw"><span>+ Nieuw hoofdstuk</span></button>
+            <button class="knop hs-nieuw" id="hs-nieuw-deel"><span>+ Nieuw deel</span></button>
           </div>
         </div>
       </div>

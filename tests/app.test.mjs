@@ -109,6 +109,8 @@ const md = (p) => p.evaluate(() => window.__schrijfmachine.store.huidig().md);
 // het pad bovenin zonder de boektitel: "Act 1 · De verhoren · Hoofdstuk 1 · De moeder"
 const kicker = (p) => p.evaluate(() => [...document.querySelectorAll('#kicker .kruim')].slice(1).map((x) => x.textContent).join(' · '));
 const klapIn = (p) => p.evaluate(() => { const h = window.__schrijfmachine.hoofdstukken; h.ingeklapt = true; h.render(); });
+const gegevens = async (p, tekst) => { await p.click(`.hs-rij:has-text("${tekst}") .rij-menu-knop`); await p.click('.rij-menu >> text=Gegevens'); };
+const kiesRij = (p, n) => p.evaluate((n) => { const h = window.__schrijfmachine.hoofdstukken; h.gekozen = h.lijstEl.querySelectorAll('.hs-rij')[n].dataset.id; h.render(); h.focusRij(); }, n);
 const view = (p) => p.evaluate(() => document.getElementById('app').dataset.view);
 
 const ZIN = 'De trap naar beneden telde dertien treden en hij telde ze opnieuw, alsof het getal deze keer anders kon uitvallen. ';
@@ -482,10 +484,14 @@ await test('hoofdstukken: aanmaken, labels, status, doel, volgorde, projectbesta
   const p = await open(ctx, 'hs');
   await p.keyboard.type('Tekst van het eerste hoofdstuk.');
   await p.click('#knop-wissel');
+  // de inhoud: geen formulier tot je om de gegevens vraagt
+  assert.equal(await p.$$eval('.hs-uitklap', (x) => x.length), 0);
+  await gegevens(p, 'Hoofdstuk 1');
   await p.fill('.titelveld', 'Het slot');
   await p.click('#hs-nieuw');
   await p.fill('.titelveld', 'De kelder');
   await p.selectOption('.hs-gegevens select[aria-label="Status"]', 'Herschrijven');
+  await p.click('.hs-plus >> text=+ Scènedoel');
   await p.fill('.hs-doel textarea', 'Ruben ontdekt dat iemand voor hem in de kelder is geweest.');
   // nieuwe verhaallijn via de keuzelijst
   await p.selectOption('.hs-gegevens select[aria-label="Verhaallijn"]', '__nieuw');
@@ -513,14 +519,13 @@ await test('hoofdstukken: aanmaken, labels, status, doel, volgorde, projectbesta
   assert.deepEqual(lijst, [['De kelder', 'Kelder.\n'], ['Het slot', 'Tekst van het eerste hoofdstuk.\n']]);
   // verwijderen gaat naar de prullenbak
   await p.click('#knop-wissel');
-  await p.click('.hs-rij >> nth=1');
   await p.click('.hs-rij >> nth=1 >> .rij-menu-knop');
   await p.click('.rij-menu >> text=Verwijderen');
   assert.ok((await p.textContent('#status-tekst')).includes('Ongedaan maken'));
   // ongedaan maken en daarna toch verwijderen met de Delete-toets
   await p.click('#status');
   assert.equal(await p.$$eval('.hs-rij:not(.hs-deel)', (r) => r.length), 2, 'teruggezet');
-  await p.click('.hs-rij >> nth=1');
+  await kiesRij(p, 1);
   await p.keyboard.press('Delete');
   await wachtOpslag(p);
   const prul = await opfsLijst(p, 'hs', 'Prullenbak');
@@ -535,9 +540,6 @@ await test('hoofdstukken: slepen om de volgorde te veranderen', async () => {
   const p = await open(ctx, 'sleep');
   await p.evaluate(() => { const s = window.__schrijfmachine.store; s.wijzigHoofdstuk(s.meta.huidig, { titel: 'A' }); s.nieuwHoofdstuk(null, 'B'); s.nieuwHoofdstuk(null, 'C'); });
   await p.click('#knop-wissel');
-  // nog een keer klikken op het gekozen hoofdstuk klapt de gegevens in
-  assert.equal(await p.$$eval('.hs-uitklap', (x) => x.length), 1);
-  await p.click('.hs-rij >> nth=0');
   assert.equal(await p.$$eval('.hs-uitklap', (x) => x.length), 0);
   await p.dragAndDrop('.hs-rij >> nth=2', '.hs-rij >> nth=0', { targetPosition: { x: 50, y: 5 } });
   await p.waitForTimeout(100);
@@ -563,10 +565,8 @@ await test('vergrendelen: eerdere pagina\'s en hoofdstukken achter een waas, é�
   await p.screenshot({ path: UIT + 'vergrendeld-pagina.png' });
   await p.click('#knop-wissel');
   assert.equal(await p.$$eval('.hs-rij.slot', (r) => r.length), 1);
-  assert.ok((await p.textContent('#hs-slotbalk')).includes('Hoofdstuk 1 vergrendeld'));
   await p.screenshot({ path: UIT + 'vergrendeld-lijst.png' });
   await p.click('.hs-rij >> nth=0');
-  await p.click('.hs-knoppen >> text=Verder schrijven');
   assert.equal(await p.isVisible('#waaslaag'), true, 'vergrendeld hoofdstuk wazig');
   assert.equal(await p.getAttribute('#tekst', 'contenteditable'), 'false');
   await p.click('#knop-ontgrendel-hier');
@@ -575,6 +575,8 @@ await test('vergrendelen: eerdere pagina\'s en hoofdstukken achter een waas, é�
   assert.equal(await p.textContent('#knop-vergrendel-tekst'), 'Vergrendel');
   // zelfgekozen reeks
   await p.click('#knop-wissel');
+  await p.click('#knop-meer');
+  await p.click('[data-actie="vergrendelen"]');
   await p.selectOption('#hs-slotbalk select >> nth=0', { value: '0' });
   await p.selectOption('#hs-slotbalk select >> nth=1', { value: '1' });
   await p.click('#hs-slotbalk button');
@@ -709,7 +711,8 @@ if (IMPORT && fs.existsSync(IMPORT)) {
     const md0 = await opfsLees(p, 'import', 'Hoofdstukken/' + (await p.evaluate(() => window.__schrijfmachine.store.lijst()[0].bestand)));
     assert.ok(md0.startsWith('# Proloog\n\n## Santorini'));
     // de tekst in de editor bladert
-    await p.click('.hs-knoppen >> text=Verder schrijven');
+    await p.click('#ov-verder');
+    await p.waitForTimeout(200);
     const c = await caret(p);
     assert.ok(c.aantal >= 4, 'proloog beslaat meerdere pagina\'s: ' + c.aantal);
     fs.writeFileSync(UIT + 'import-proloog.md', lijst[0].md);
@@ -755,7 +758,6 @@ await test('delen: act toevoegen, slepen, kop bovenin, export en weer import', a
   // terug naar de goede volgorde via de store en de kop bovenin bekijken
   await p.evaluate(() => { const s = window.__schrijfmachine.store; const m = s.lijst().find((h) => h.titel === 'De moeder'); s.zetAanBeginVanDeel(m.id, s.delen()[0].id); });
   await p.click('.hs-rij >> text=De moeder');
-  await p.click('.hs-knoppen >> text=Verder schrijven');
   assert.equal(await kicker(p), 'Act 1 · De verhoren · Hoofdstuk 1 · De moeder');
   await wachtOpslag(p);
   const json = JSON.parse(await opfsLees(p, 'delen', 'schrijfmachine.json'));
@@ -906,6 +908,7 @@ await test('scènes in het hoofdstukscherm springen naar het kopje', async () =>
     window.__schrijfmachine.editor.laad(s.meta.huidig);
   });
   await p.click('#knop-wissel');
+  await gegevens(p, 'Hoofdstuk 1');
   assert.deepEqual(await p.$$eval('.hs-scene', (b) => b.map((x) => x.textContent)), ['Santorini', 'Edinburgh']);
   await p.click('.hs-scene >> text=Edinburgh');
   await p.waitForTimeout(200);
@@ -979,13 +982,12 @@ await test('nummering: proloog telt niet mee, per act doortellen of opnieuw', as
   await p.selectOption('.hs-gegevens select', 'opnieuw');
   assert.deepEqual(await nrs(), [null, 1, 2, 1, null]);
   // zelf aangeven dat een hoofdstuk niet meetelt
-  await p.click('.hs-rij >> text=De zus');
+  await gegevens(p, 'De zus');
   await p.selectOption('select[aria-label="Nummering"]', 'nee');
   assert.deepEqual(await nrs(), [null, 1, null, 1, null]);
   assert.ok((await p.textContent('.hs-detail .label')).includes('Los, zonder nummer'));
   await p.selectOption('select[aria-label="Nummering"]', 'ja');
   await p.click('.hs-rij >> text=Het vonnis');
-  await p.click('.hs-knoppen >> text=Verder schrijven');
   assert.equal(await kicker(p), 'Act 2 · Hoofdstuk 1 · Het vonnis');
   await p.keyboard.press('Control+PageUp');
   await p.keyboard.press('Control+PageUp');
@@ -1170,7 +1172,7 @@ await test('personages: jij kiest de cast, namen in je tekst, koppelen, schrijfw
   await p.click('#terug-chip');
   await p.waitForTimeout(200);
   assert.equal(await view(p), 'hoofdstukken');
-  assert.equal(await p.getAttribute('[data-tab="personages"]', 'aria-selected'), 'true');
+  assert.equal(await p.getAttribute('[data-tab="personages"]', 'aria-pressed'), 'true');
   assert.equal(await p.inputValue('#pers-kaarten .naamveld'), 'Eleanor Ashworth');
   // Zoek en vervang vanuit de schrijfwijze
   await p.click('#pers-namen .voorstel:has-text("Phillips") >> text=Zoek en vervang');
@@ -1220,12 +1222,14 @@ await test('boek: start op het overzicht, verder schrijven, raster, Esc en terug
   assert.equal(await p.textContent('.ov h1'), 'De Gevangen Observator');
   assert.equal(await p.textContent('#knop-wissel-tekst'), 'Schrijven');
   assert.ok((await p.textContent('#ov-verder')).includes('Act 1 · De verhoren · Hoofdstuk 1 · De moeder'));
-  // het hoofdstuk waar je bent staat open in de lijst, met "hier ben je"
+  // de inhoud: rustig, zonder formulier, vergrendelen of tips ernaast
   assert.ok((await p.textContent('.hs-rij.huidig')).includes('De moeder'));
-  assert.equal(await p.$$eval('.hs-uitklap .titelveld', (x) => x.map((i) => i.value).join()), 'De moeder');
-  // alleen de verhaallijn Murray: de proloog wordt lichter
-  await p.selectOption('.ov-filter', { label: 'Alleen Murray' });
-  assert.ok((await p.textContent('.hs-rij.gedimd')).includes('Proloog'));
+  assert.equal(await p.$$eval('.hs-uitklap', (x) => x.length), 0);
+  const inhoud = await p.textContent('#boek-overzicht');
+  assert.ok(!inhoud.includes('Vergrendel') && !inhoud.includes('Scènedoel') && !inhoud.includes('Nog te bekijken'), inhoud);
+  // de uitleg staat er één keer
+  await p.click('.ov-uitleg >> text=Begrepen');
+  assert.equal(await p.$$eval('.ov-uitleg', (x) => x.length), 0);
   await p.screenshot({ path: UIT + 'boek-overzicht.png' });
   await p.click('[data-tab="personages"]');
   assert.equal(await p.$$eval('#pers-raster tbody tr', (r) => r.length), 2);
@@ -1252,10 +1256,10 @@ await test('boek: start op het overzicht, verder schrijven, raster, Esc en terug
   await p.goBack();
   await p.waitForTimeout(150);
   assert.equal(await view(p), 'hoofdstukken');
-  assert.equal(await p.getAttribute('[data-tab="overzicht"]', 'aria-selected'), 'true');
+  assert.equal(await p.getAttribute('[data-tab="overzicht"]', 'aria-pressed'), 'true');
   await p.goBack();
   await p.waitForTimeout(150);
-  assert.equal(await p.getAttribute('[data-tab="aantekeningen"]', 'aria-selected'), 'true');
+  assert.equal(await p.getAttribute('[data-tab="aantekeningen"]', 'aria-pressed'), 'true');
   // het pad bovenin: klik op het deel opent het overzicht met dat deel open
   await p.click('#knop-wissel');
   await p.click('#kicker .kruim >> text=Act 1 · De verhoren');
@@ -1356,8 +1360,9 @@ await test('aantekeningen: in de tekst, op het overzicht, spiekbriefje, niet in 
   await p.keyboard.press('Control+PageDown');
   await p.waitForTimeout(150);
   await p.click('#knop-wissel');
-  assert.ok((await p.textContent('.ov-zij')).includes('Klopt dertien wel?'));
-  await p.click('.ov-zij .ant-tekst');
+  assert.equal(await p.textContent('#knop-aantekeningen-tal'), '1');
+  await p.click('[data-tab="aantekeningen"]');
+  await p.click('#ant-lijst .ant-tekst');
   await p.waitForTimeout(300);
   assert.equal(await view(p), 'schrijven');
   assert.equal(await kicker(p), 'Hoofdstuk 1 · De trap');

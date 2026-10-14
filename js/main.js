@@ -62,7 +62,7 @@ function notitiesBewaar() { Notities.bewaarAlle(); }
 function naarBoek(gekozen = null) {
   navigeer(() => {
     zetView('boek', { tab: 'overzicht', focus: !gekozen });
-    if (gekozen) { hoofdstukken.toon(gekozen); hoofdstukken.focusRij(); }
+    if (gekozen) { hoofdstukken.toon(gekozen, { open: true }); hoofdstukken.focusRij(); }
   });
 }
 function naarSchrijven() { navigeer(() => zetView('schrijven')); }
@@ -76,7 +76,9 @@ function werkKicker() {
   const kruim = (tekst, fn, uitleg) => (fn ? el('button', { class: 'kruim', text: tekst, title: uitleg, onclick: fn }) : el('span', { class: 'kruim', text: tekst }));
   const pijl = () => el('span', { class: 'kruim-pijl', 'aria-hidden': 'true', text: '›' });
   if (app.dataset.view === 'hoofdstukken') {
-    k.append(kruim(titel));
+    const sub = { personages: 'Personages', aantekeningen: 'Aantekeningen' }[boek.tab];
+    if (sub) k.append(kruim(titel, () => navigeer(() => boek.kies('overzicht')), 'Naar de inhoud'), pijl(), kruim(sub));
+    else k.append(kruim(titel));
   } else {
     const h = store.huidig();
     k.append(kruim(titel, () => naarBoek(), 'Naar het overzicht van je boek'));
@@ -603,6 +605,14 @@ async function menuActie(actie) {
     if (app.dataset.view === 'hoofdstukken') boek.render();
   } else if (actie === 'claude') {
     openClaude();
+  } else if (actie === 'vergrendelen') {
+    hoofdstukken.renderSlot();
+    await dialoog({
+      titel: 'Vergrendelen',
+      inhoud: [el('p', { class: 'klein', text: 'Vergrendelde hoofdstukken staan achter een waas en kun je niet per ongeluk bewerken. Tijdens het schrijven zet de knop Vergrendel alles vóór je pagina achter een waas.' }), hoofdstukken.slotEl],
+      knoppen: [{ tekst: 'Klaar', waarde: null, hoofd: true }],
+    });
+    if (app.dataset.view === 'hoofdstukken') hoofdstukken.render();
   } else if (actie === 'aantekening') {
     await maakAantekening();
   } else if (actie === 'zoeken') {
@@ -776,8 +786,8 @@ async function versiesDialoog() {
 function hulp() {
   const rij = (toets, wat) => el('tr', {}, el('td', {}, ...toets.split(' + ').flatMap((t, i) => (i ? [' + ', el('kbd', { text: t })] : [el('kbd', { text: t })]))), el('td', { text: wat }));
   dialoog({
-    titel: 'Sneltoetsen',
-    inhoud: [el('table', {},
+    titel: 'Handig om te weten',
+    inhoud: [el('p', { class: 'klein', text: 'Klik in de inhoud op een hoofdstuk om erin te schrijven; achter elk hoofdstuk staat ··· voor gegevens, hernoemen, verplaatsen en meer. Ga tijdens het schrijven met de muis naar de linkerrand voor je hoofdstukken. De terugtoets brengt je altijd één stap terug.' }), el('table', {},
       rij('Ctrl + B', 'Vet'),
       rij('Ctrl + I', 'Cursief'),
       rij('Ctrl + Alt + 2', 'Kopje binnen het hoofdstuk (aan/uit)'),
@@ -858,7 +868,10 @@ function sneltoetsen() {
     }
     if (e.key === 'Escape') {
       if (!document.getElementById('menu').hidden || document.querySelector('.rij-menu')) return;
-      if (app.dataset.view === 'hoofdstukken') { naarSchrijven(); return; }
+      if (app.dataset.view === 'hoofdstukken') {
+        if (boek.tab !== 'overzicht') navigeer(() => boek.kies('overzicht')); else naarSchrijven();
+        return;
+      }
       if (zoeken.open) { zoeken.sluit(); return; }
       if (claude.open) { claude.sluit(); return; }
       if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#notities')) { editor.focus(); return; }
@@ -993,6 +1006,7 @@ async function start() {
     openMoment,
     openAantekening,
     actie: (a) => menuActie(a),
+    naKies: () => werkKicker(),
     zoek: (term) => { naarSchrijven(); if (claude.open) claude.sluit(); zoeken.toon(term); },
   });
   claude = new Claude({ huidigeSelectie, voorKlaar: () => { editor.bewaar(); notitiesBewaar(); } });
@@ -1001,7 +1015,7 @@ async function start() {
   store.addEventListener('aantekeningen', () => {
     markeerAantekeningen();
     if (spiek.open) spiek.werkBij();
-    if (app.dataset.view === 'hoofdstukken') { if (boek.tab === 'aantekeningen') boek.aantekeningen(); else if (boek.tab === 'overzicht') boek.kopEnZij(); }
+    if (app.dataset.view === 'hoofdstukken') { if (boek.tab === 'aantekeningen') boek.aantekeningen(); else if (boek.tab === 'overzicht') boek.werkKop(); }
   });
   document.addEventListener('selectionchange', () => {
     if (app.dataset.view !== 'schrijven') return;

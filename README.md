@@ -43,35 +43,34 @@ De app kent maar twee plekken. **Schrijven** is je pagina. **Boek** is alles ove
 
 **Terug waar je was.** Elke sprong is een stap: naar een ander hoofdstuk, een zoektreffer, een personage, je boek. De **terugtoets** bovenaan het Chromebook-toetsenbord (of **Alt+←**) brengt je één stap terug, op dezelfde plek in de tekst. Na een sprong staat onderin ook even "Terug naar De moeder, blz. 12".
 
-**Waar ben ik?** Linksboven staat het pad: De Gevangen Observator › Act 1 › Hoofdstuk 1 · De moeder. Klik op de titel voor het overzicht, op het deel of het hoofdstuk om dat in de lijst open te klappen.
+**Waar ben ik?** Linksboven staat het pad: De Gevangen Observator › Act 1 › Hoofdstuk 1 · De moeder. Klik op de titel voor de inhoud, op het deel of het hoofdstuk om de gegevens daarvan open te klappen.
 
-### Boek
+### Binnenkomen: de inhoud van je boek
 
-De app opent op Boek, met drie tabbladen:
+De app opent op de inhoud van je boek, zoals de inhoudspagina van een gedrukt boek: de titel (klik erop om hem te wijzigen), het aantal hoofdstukken en woorden, één knop **Verder schrijven** (of gewoon Enter) en daaronder je delen en hoofdstukken. Bij het hoofdstuk waar je was staat "hier was je". Meer staat er niet.
 
-- **Overzicht:** de titel, een grote knop **Verder schrijven** (of gewoon Enter) en de lijst met delen en hoofdstukken. Bij het hoofdstuk waar je bent staat "hier ben je". Klik een hoofdstuk aan en scènedoel, samenvatting, status en verhaallijn klappen eronder open; nog een keer klikken klapt ze in. Heb je verhaallijnen, dan kun je de lijst op één lijn laten zien. Rechts: wat er nog te bekijken is (je aantekeningen, namen die anders gespeld zijn) en vergrendelen.
-- **Personages:** wie komt waar voor, je personagekaarten, en de namen in je tekst. Zie hieronder.
-- **Aantekeningen:** alles wat je in de tekst noteerde, plus je Ideeën en Verhaallijnen.
-
-Instellingen, exporteren en de rest staan onder **Meer**.
+- **Klik op een hoofdstuk** en je schrijft erin.
+- **Personages** en **Aantekeningen** staan rechtsboven. Bij Aantekeningen staat hoeveel er nog open zijn; een stipje bij Personages betekent dat er een naam anders gespeld is. Esc of de terugtoets brengt je terug naar de inhoud.
+- **Vergrendelen** van een reeks hoofdstukken: **Meer > Vergrendelen**. Eén hoofdstuk: via ···.
+- Alle sneltoetsen en tips: **Meer > Handig om te weten**.
 
 ### Snel bewerken in de lijst
 
-Achter elk hoofdstuk staat **···**: openen, hernoemen, nieuw hoofdstuk hierna, nieuw deel vanaf hier, omhoog, omlaag, vergrendelen, verwijderen. Bij een deel: hernoemen, nieuw hoofdstuk in dit deel, deel verwijderen. Slepen kan ook.
+Achter elk hoofdstuk staat **···**: openen, **Gegevens** (scènedoel, samenvatting, status, verhaallijn, scènes, wie erin voorkomt), hernoemen, nieuw hoofdstuk hierna, nieuw deel vanaf hier, omhoog, omlaag, vergrendelen, verwijderen. Een leeg veld staat er als één stille regel ("+ Scènedoel"). Een deel klik je aan om het te hernoemen of de nummering te kiezen. Slepen kan ook.
 
-**Verwijderen** vraagt niets, maar rechtsonder staat tien seconden **Ongedaan maken**. Daarna is het nog steeds niet weg: er is vooraf een versie gemaakt (**Versies terugzetten**) en het bestand staat in `Prullenbak/` in je map. Een gekozen hoofdstuk kun je ook met de Delete-toets weghalen.
+**Verwijderen** vraagt niets, maar rechtsonder staat tien seconden **Ongedaan maken**. Daarna is het nog steeds niet weg: er is vooraf een versie gemaakt (**Versies terugzetten**) en het bestand staat in `Prullenbak/` in je map. Een gekozen hoofdstuk (pijltjestoetsen) kun je ook met de Delete-toets weghalen.
 
 ## Aantekeningen in de tekst
 
 Zet je cursor bij een woord (of selecteer een stuk) en druk **Ctrl+Alt+A**, of kies **NOOT** in het balkje dat verschijnt als je iets selecteert. Typ wat je later nog wilt doen of checken, bijvoorbeeld "was dit dinsdag?".
 
 - Het woord krijgt een zacht okerkleurig vlakje. Staat je cursor erin, dan zie je de aantekening onderin, met **Klaar**, **Bewerk** en **Verwijder**.
-- Open aantekeningen staan op het overzicht onder "Nog te bekijken" en allemaal bij Boek > Aantekeningen. Een klik brengt je naar de plek.
+- Rechtsboven bij Aantekeningen staat hoeveel er nog open zijn; daar staan ze allemaal. Een klik brengt je naar de plek.
 - Ze schuiven mee als je tekst ervoor schrijft. Ze staan in `schrijfmachine.json`, niet in de tekst zelf, dus ze gaan nooit mee in de export en tellen niet mee bij de woorden.
 
 ## Het spiekbriefje
 
-**Spiekbrief** (of **Ctrl+Alt+N**) zet naast je tekst alles over het hoofdstuk waar je in zit: het scènedoel (ook te bewerken), de samenvatting van het vorige hoofdstuk, wie erin voorkomt (een klik opent de kaart, hier naast je tekst), de aantekeningen in dit hoofdstuk, en een vakje om snel een idee te noteren (Ctrl+Enter). Dat idee komt bij Ideeën, met het hoofdstuk erbij.
+**Spiekbrief** (of **Ctrl+Alt+N**) zet naast je tekst alles over het hoofdstuk waar je in zit: het scènedoel en de samenvatting (allebei te bewerken), de samenvatting van het vorige hoofdstuk, wie erin voorkomt (een klik opent de kaart, hier naast je tekst), de aantekeningen in dit hoofdstuk, en een vakje om snel een idee te noteren (Ctrl+Enter). Dat idee komt bij Ideeën, met het hoofdstuk erbij.
 
 ---
 
@@ -109,7 +108,7 @@ De Markdown is gewoon leesbaar: `**vet**`, `*cursief*`, `## Kopje` en `* * *` vo
 
 ## Delen (acts)
 
-In de lijst op het overzicht maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren › De moeder". In de export krijgt elk deel een eigen pagina.
+In de inhoud maak je met **Nieuw deel** of **Nieuw deel vanaf hier** een deel, bijvoorbeeld "Act 1 · De verhoren". Een deel is een kopje boven een groep hoofdstukken. Sleep een hoofdstuk op de kop van een deel om het het eerste hoofdstuk van dat deel te maken. Bovenin het schrijfscherm staat dan "Act 1 · De verhoren › De moeder". In de export krijgt elk deel een eigen pagina.
 
 ## Nummering
 
@@ -146,7 +145,7 @@ De app vraagt hier nergens anders ongevraagd aandacht voor. Dit gaat zonder AI, 
 - **Hoofdstukken in de kantlijn.** Ga met de muis naar de lege rand links van de tekst: daar staan **Overzicht** (naar Boek), je delen en hoofdstukken, en het scènedoel van het hoofdstuk waar je in zit. Eén klik en je zit in een ander hoofdstuk. Zodra je typt, is de lijst weer weg, tenzij je in de instellingen **Hoofdstukken altijd in de kantlijn** aanzet.
 - **Terug waar je was.** Per hoofdstuk onthoudt de app waar je cursor stond, ook na afsluiten.
 - **Zoeken en vervangen** door het hele manuscript met **Ctrl+F**. Enter springt naar de volgende treffer, op de juiste pagina. "Vervang alles" maakt eerst een versie, dus het is altijd terug te draaien.
-- **Scènes.** De kopjes in een hoofdstuk staan in de lijst op het overzicht, onder het scènedoel; een klik brengt je erheen.
+- **Scènes.** De kopjes in een hoofdstuk staan bij ··· > Gegevens; een klik brengt je erheen.
 
 ## Instellingen (Meer > Instellingen)
 
@@ -188,7 +187,7 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE, NOOT 
 
 - **Bladeren:** PageDown/PageUp, klikken in de lege rand naast de tekst, de pijltjes onderin, of scrollen met het touchpad (één pagina per beweging). Typ of wis je over de rand van een pagina, dan slaat de app vanzelf om.
 - **Verbleken:** alle alinea's vóór de alinea waar je cursor staat zijn iets lichter. Zet je de cursor terug in een oude alinea, dan wordt die weer donker.
-- **Vergrendelen:** de knop **Vergrendel** zet alle eerdere hoofdstukken en de eerdere pagina's van dit hoofdstuk achter een waas. Op het overzicht (rechts, bij Vergrendelen) kun je ook een eigen reeks kiezen ("Vergrendel 1 t/m 9") of één hoofdstuk apart. Een vergrendeld hoofdstuk kun je niet per ongeluk bewerken. Eén klik op **Ontgrendel** en alles is weer zichtbaar.
+- **Vergrendelen:** de knop **Vergrendel** zet alle eerdere hoofdstukken en de eerdere pagina's van dit hoofdstuk achter een waas. Via Meer > Vergrendelen kun je ook een eigen reeks kiezen ("Vergrendel 1 t/m 9") of één hoofdstuk apart. Een vergrendeld hoofdstuk kun je niet per ongeluk bewerken. Eén klik op **Ontgrendel** en alles is weer zichtbaar.
 - **Verhaallijnen:** de kleurlabels van hoofdstukken komen uit Boek > Aantekeningen > Verhaallijnen. Je kunt er ook direct een maken vanuit een hoofdstuk ("Nieuwe verhaallijn…"). Kleuren: blauw, rood, oker, groen, pruim en grijs, allemaal gedempt.
 - **Status:** Idee, Concept, Herschrijven, Klaar.
 - **Volgorde:** slepen in de lijst, de knoppen Omhoog/Omlaag, of Alt+pijltje.
@@ -197,7 +196,7 @@ Selecteer je tekst, dan verschijnt een klein balkje met B, I, KOP, SCÈNE, NOOT 
 - **Plakken** gaat altijd als platte tekst, zodat er geen vreemde lettertypes of kleuren in je manuscript komen.
 - **Typ je verder na een vet of cursief woord,** dan loopt de opmaak door (zoals in Word). Ctrl+B of Ctrl+I zet hem weer uit.
 - **De docx-export** gebruikt geen externe library: de app maakt het bestand zelf en pakt het in met de ingebouwde compressie van Chrome. Dat werkt dus ook offline.
-- **Geen dagdoel, statistieken of meldingen.** Alleen het aantal woorden per hoofdstuk en in totaal, op het overzicht.
+- **Geen dagdoel, statistieken of meldingen.** Alleen het aantal woorden per hoofdstuk en in totaal, in de inhoud.
 
 ## Updates
 

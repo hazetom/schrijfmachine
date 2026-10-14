@@ -1,5 +1,5 @@
-// Het scherm "Boek": alles over je boek op één plek, in drie tabbladen.
-// Overzicht: titel, Verder schrijven, de hoofdstukkenlijst (zie chapters.js) en wat er nog te bekijken is.
+// Het scherm "Boek". Je komt binnen op de inhoudsopgave: titel, Verder schrijven en je hoofdstukken.
+// Personages en Aantekeningen zijn twee rustige knoppen rechtsboven; Esc of terug brengt je weer hier.
 // Personages: wie komt waar voor, de kaarten, schrijfwijze en namen in je tekst.
 // Aantekeningen: wat je in de tekst noteerde, plus Ideeën en Verhaallijnen.
 
@@ -8,24 +8,23 @@ import { el } from './ui.js';
 import { vermeldingen, tijdlijn, maakPersonage, voegAliasToe, markeerAls, namenInBoek, lijktOp, naamControle } from './personages.js';
 import { openAantekeningen, fragment } from './aantekeningen.js';
 import { Notities } from './notes.js';
-import { mapInfo } from './folder.js';
 
 export const BOEK_TABS = ['overzicht', 'personages', 'aantekeningen'];
 
 export class Boek {
-  constructor({ hoofdstukken, navigeer, openSchrijven, openMoment, openAantekening, actie, zoek }) {
-    this.tabsEl = document.getElementById('boek-tabs');
+  constructor({ hoofdstukken, navigeer, openSchrijven, openMoment, openAantekening, actie, zoek, naKies }) {
     this.tab = 'overzicht';
     this.hs = hoofdstukken;
-    this.cb = { navigeer, openSchrijven, openMoment, openAantekening, actie, zoek };
+    this.cb = { navigeer, openSchrijven, openMoment, openAantekening, actie, zoek, naKies };
     this.toonKlaar = false;
-    this.tabsEl.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-tab]');
       if (b) this.cb.navigeer(() => this.kies(b.dataset.tab));
     });
     this.kaarten = new Notities({ root: document.getElementById('pers-kaarten'), tabs: ['personages'], openMoment, opWijziging: () => this.rasterBijwerken() });
     this.werkNotities = new Notities({ root: document.getElementById('ant-notities'), tabs: ['ideeen', 'verhaallijnen'], opWijziging: () => {} });
-    this.hs.naRender = () => this.kopEnZij();
+    this.hs.naRender = () => this.werkKop();
+    store.addEventListener('aantekeningen', () => this.werkKnoppen());
   }
 
   get persoon() { return this.tab === 'personages' ? this.kaarten.gekozen.personages || null : null; }
@@ -34,9 +33,21 @@ export class Boek {
     if (!BOEK_TABS.includes(tab)) tab = 'overzicht';
     Notities.bewaarAlle();
     this.tab = tab;
-    for (const b of this.tabsEl.querySelectorAll('[data-tab]')) b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false');
+    for (const b of document.querySelectorAll('[data-tab]')) b.setAttribute('aria-pressed', b.dataset.tab === tab ? 'true' : 'false');
     for (const p of document.querySelectorAll('#view-hoofdstukken [data-paneel]')) p.hidden = p.dataset.paneel !== tab;
+    document.getElementById('app').dataset.boektab = tab;
+    this.werkKnoppen();
     this.render();
+    if (this.cb.naKies) this.cb.naKies();
+  }
+
+  // "Aantekeningen 3" en een stipje bij Personages als er een naam anders gespeld is
+  werkKnoppen() {
+    const n = openAantekeningen().length;
+    const a = document.getElementById('knop-aantekeningen-tal');
+    if (a) a.textContent = n ? String(n) : '';
+    const p = document.getElementById('knop-personages');
+    if (p) p.classList.toggle('let-op', naamControle().length > 0);
   }
 
   render() {
@@ -50,65 +61,32 @@ export class Boek {
     return [deel ? deel.titel : null, store.label(h.id), h.titel || 'Zonder titel'].filter(Boolean).join(' · ');
   }
 
-  // ---------- overzicht ----------
+  // ---------- inhoudsopgave ----------
   overzicht() {
     this.hs.toon();
   }
 
-  // titel, Verder schrijven en de rechterkolom; de lijst zelf tekent chapters.js
-  kopEnZij() {
+  // titel, Verder schrijven en (één keer) een korte uitleg; de lijst zelf tekent chapters.js
+  werkKop() {
     if (this.tab !== 'overzicht') return;
     const kop = document.getElementById('ov-kop');
     kop.innerHTML = '';
     const h = store.huidig();
     const lijst = store.lijst();
-    const delen = store.delen();
     const titel = store.meta.titel;
     const woordenTotaal = lijst.reduce((n, x) => n + (x.woorden || 0), 0);
     kop.append(
-      el('h1', { text: titel || 'Je boek' }),
-      el('p', { class: 'klein' }, `${lijst.length} ${lijst.length === 1 ? 'hoofdstuk' : 'hoofdstukken'}${delen.length ? ' in ' + delen.length + (delen.length === 1 ? ' deel' : ' delen') : ''} · ${woordenTotaal.toLocaleString('nl-NL')} woorden`,
-        titel ? null : el('button', { class: 'knop link', text: 'Titel geven', onclick: () => this.cb.actie('titel') })),
+      el('h1', {}, el('button', { class: 'ov-titel' + (titel ? '' : ' leeg'), text: titel || 'Naamloos boek', title: 'Titel van het boek wijzigen', onclick: () => this.cb.actie('titel') })),
+      el('p', { class: 'klein', text: `${lijst.length} ${lijst.length === 1 ? 'hoofdstuk' : 'hoofdstukken'} · ${woordenTotaal.toLocaleString('nl-NL')} woorden` }),
       el('button', { class: 'ov-verder', id: 'ov-verder', onclick: () => this.cb.openSchrijven(h.id) },
         el('span', { class: 'label', text: 'Verder schrijven' }),
-        el('span', { class: 'wat', text: this.kop(h) }),
-        el('span', { class: 'hint', text: 'Enter, of klik. Je komt terug op de plek waar je was.' })));
-    // filter op verhaallijn
-    const lijnen = store.notities('verhaallijnen');
-    const balk = el('div', { class: 'ov-lijstkop' }, el('span', { class: 'ov-blok-titel', text: 'Hoofdstukken' }));
-    if (lijnen.length) {
-      const f = el('select', { 'aria-label': 'Toon verhaallijn', class: 'ov-filter' }, el('option', { value: '', text: 'Alle verhaallijnen' }),
-        ...lijnen.map((l) => el('option', { value: l.id, text: 'Alleen ' + (l.naam || 'zonder naam') })));
-      f.value = this.hs.filterLijn || '';
-      f.addEventListener('change', () => { this.hs.filterLijn = f.value || null; this.hs.renderLijst(); });
-      balk.append(f);
-    }
-    kop.append(balk);
-
-    // rechterkolom: wat er nog te doen is
-    const zij = document.getElementById('ov-zij-boven');
-    zij.innerHTML = '';
-    const m = mapInfo();
-    if (m.status !== 'verbonden' && m.status !== 'bezig') {
-      zij.append(el('p', { class: 'ov-blok-titel', text: 'Opslag' }),
-        el('p', { text: m.naam ? 'Je map "' + m.naam + '" is niet gekoppeld; je tekst staat wel veilig op dit apparaat.' : 'Er is nog geen map gekozen; je tekst staat op dit apparaat.' }),
-        el('p', {}, el('button', { class: 'knop link', text: m.naam ? 'Map opnieuw koppelen' : 'Kies je Drive-map', onclick: () => this.cb.actie(m.naam ? 'koppel' : 'map') })));
-    }
-    const open = openAantekeningen();
-    const schrijfwijze = naamControle();
-    zij.append(el('p', { class: 'ov-blok-titel', text: 'Nog te bekijken' }));
-    if (!open.length && !schrijfwijze.length) zij.append(el('p', { class: 'leeg-hint', text: 'Niets. Aantekeningen die je in de tekst maakt (Ctrl+Alt+A) komen hier te staan.' }));
-    if (open.length) {
-      const ul = el('ul', { class: 'ov-ant' });
-      for (const { h: x, a } of open.slice(0, 5)) {
-        ul.append(el('li', {}, el('button', { class: 'ant-tekst', onclick: () => this.cb.openAantekening(x.id, a) },
-          el('span', { text: a.tekst }), el('span', { class: 'ant-waar', text: (x.titel || 'Zonder titel') + ': ' + fragment(x, a) }))));
-      }
-      zij.append(ul);
-      if (open.length > 5) zij.append(el('p', {}, el('button', { class: 'knop link', text: 'Alle ' + open.length + ' aantekeningen', onclick: () => this.cb.navigeer(() => this.kies('aantekeningen')) })));
-    }
-    for (const s of schrijfwijze.slice(0, 3)) {
-      zij.append(el('p', {}, el('button', { class: 'knop link', text: s.variant + ' (' + s.aantal + '×) of ' + s.juist + '?', title: 'Bekijk bij Personages', onclick: () => this.cb.navigeer(() => this.kies('personages')) })));
+        el('span', { class: 'wat', text: this.kop(h) + '  →' })));
+    let gezien = false;
+    try { gezien = localStorage.getItem('schrijfmachine-uitleg') === '1'; } catch (e) { /* */ }
+    if (!gezien) {
+      const uitleg = el('p', { class: 'ov-uitleg' }, 'Klik op een hoofdstuk om erin te schrijven. Esc brengt je hier terug. Alle sneltoetsen staan onder Meer > Handig om te weten. ',
+        el('button', { class: 'knop link', text: 'Begrepen', onclick: () => { try { localStorage.setItem('schrijfmachine-uitleg', '1'); } catch (e) { /* */ } uitleg.remove(); } }));
+      kop.append(uitleg);
     }
   }
 

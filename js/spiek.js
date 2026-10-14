@@ -80,6 +80,13 @@ export class Spiek {
     p.append(el('div', { class: 'spiek-blok' }, el('span', { class: 'label', text: 'Scènedoel' }), doel));
     requestAnimationFrame(groei);
 
+    const samen = el('textarea', { rows: '2', 'aria-label': 'Samenvatting', placeholder: 'Een paar zinnen: wat gebeurt er?' });
+    samen.value = h.samenvatting || '';
+    const groeiS = () => { samen.style.height = 'auto'; samen.style.height = samen.scrollHeight + 'px'; };
+    samen.addEventListener('input', () => { store.wijzigHoofdstuk(h.id, { samenvatting: samen.value }); groeiS(); });
+    p.append(el('div', { class: 'spiek-blok' }, el('span', { class: 'label', text: 'Samenvatting' }), samen));
+    requestAnimationFrame(groeiS);
+
     if (vorige) {
       p.append(el('div', { class: 'spiek-blok' }, el('span', { class: 'label', text: 'Vorig hoofdstuk: ' + (vorige.titel || 'Zonder titel') }),
         vorige.samenvatting ? el('p', { text: vorige.samenvatting }) : el('p', { class: 'leeg-hint', text: 'Nog geen samenvatting. Die vul je in bij Boek, of laat Claude hem maken.' })));
